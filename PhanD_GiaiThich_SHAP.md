@@ -148,6 +148,8 @@ shap.waterfall_plot(shap.Explanation(...))
 
 ### 5.1. Summary Plot (Biểu đồ tổng quan)
 
+![SHAP Summary Plot](./images/shap_summary.png)
+
 Đây là biểu đồ **quan trọng nhất** – cho thấy bức tranh toàn cảnh:
 
 - **Trục Y**: Tên các đặc trưng, sắp xếp theo mức độ quan trọng (trên cùng = quan trọng nhất)
@@ -163,6 +165,8 @@ shap.waterfall_plot(shap.Explanation(...))
 > 💡 **Mẹo cho kỹ sư:** Nhìn 3–5 feature trên cùng → đó là các chỉ số bạn nên ưu tiên giám sát trên hệ thống online.
 
 ### 5.2. Waterfall Plot (Biểu đồ thác nước cho một mẫu)
+
+![SHAP Waterfall Plot](./images/shap_waterfall.png)
 
 Biểu đồ này giải thích **một mẫu cụ thể** – ví dụ một segment rung mà mô hình chẩn đoán là "lỗi rãnh trong":
 

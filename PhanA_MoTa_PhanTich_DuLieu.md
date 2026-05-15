@@ -232,6 +232,8 @@ Sau buổi thực hành, học viên sẽ:
 
 ### 5.3. Spectrogram (Phổ thời gian–tần số)
 
+![Spectrogram Example](./images/spectrogram_example.png)
+
 Spectrogram hiển thị **sự thay đổi năng lượng theo cả thời gian và tần số** trên cùng một biểu đồ:
 - **Trục X**: Thời gian
 - **Trục Y**: Tần số
@@ -247,6 +249,8 @@ Spectrogram hiển thị **sự thay đổi năng lượng theo cả thời gian
 > 💡 **Ngôn ngữ kỹ sư:** "Spectrogram giống như bản đồ nhiệt của rung động. Nếu thấy các vệt sáng lặp lại đều đặn → có xung va chạm tuần hoàn → dấu hiệu ổ lăn hư hỏng. Khoảng cách giữa các vệt cho biết tần số va chạm, từ đó suy ra vị trí lỗi."
 
 ### 5.4. Histogram & Boxplot các đặc trưng thống kê
+
+![Boxplot Example](./images/boxplot_example.png)
 
 #### RMS (Root Mean Square – Giá trị hiệu dụng)
 

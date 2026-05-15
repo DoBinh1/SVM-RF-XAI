@@ -30,6 +30,8 @@ Hãy tưởng tượng bạn là quản đốc và cần **phân chia kho hàng*
 - Kernel RBF "**ánh xạ dữ liệu lên không gian cao hơn**" – nơi mà dữ liệu trở nên tách biệt dễ hơn
 - Hãy tưởng tượng: bạn có hai nhóm bi (đỏ và xanh) nằm lẫn lộn trên mặt bàn (2D) – không kẻ được đường thẳng phân tách. Nhưng nếu bạn **nâng nhóm đỏ lên cao** (3D), bạn có thể dùng một mặt phẳng ngang để tách → đó chính là ý tưởng kernel.
 
+![Kernel Trick Example](./images/kernel_trick.png)
+
 > 💡 **Ghi nhớ:** Kernel RBF là lựa chọn mặc định tốt cho hầu hết bài toán chẩn đoán rung. Bạn không cần hiểu toán phía sau – chỉ cần biết nó giúp SVM xử lý được dữ liệu phức tạp.
 
 ### 1.3. Các siêu tham số quan trọng
