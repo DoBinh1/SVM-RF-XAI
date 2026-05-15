@@ -129,7 +129,7 @@ Từ mỗi segment, ta tính ra **một vector số** (feature vector) gồm cá
 | **Peak** | Giá trị đỉnh lớn nhất | Phát hiện xung va chạm mạnh |
 | **Crest Factor** | Peak / RMS | Tỷ lệ đỉnh/năng lượng – cao khi có xung nhọn |
 | **Skewness** | Độ lệch phân bố | Phân bố rung bất đối xứng → dấu hiệu bất thường |
-| **Kurtosis** | Độ nhọn phân bố | Rất nhạy với xung va chạm – **chỉ số vàng** cho ổ lăn |
+| **Kurtosis** | Độ nhọn phân bố (Pearson: normal ≈ 3) | Rất nhạy với xung va chạm – **chỉ số vàng** cho ổ lăn |
 
 **Đặc trưng miền tần số (Frequency-domain):**
 
@@ -196,16 +196,18 @@ Sau buổi thực hành, học viên sẽ:
 #### Lỗi rãnh trong (Inner Race Fault)
 - Xuất hiện **chuỗi xung va chạm lặp lại** với tần số = BPFI (Ball Pass Frequency Inner)
 - Xung có **biên độ thay đổi** (modulated) vì vết lỗi trên vòng trong quay vào/ra khỏi vùng chịu tải
+  - Sidebands xuất hiện tại **BPFI ± n×fr** (với fr = tần số quay trục ≈ 29.95 Hz @ 1797 RPM)
 - Biên độ tăng đáng kể so với bình thường, đặc biệt ở lỗi 14–21 mils
 
-> 💡 **Ngôn ngữ kỹ sư:** "Mỗi khi viên bi lăn qua vết lõm trên rãnh trong, nó tạo ra một cú va đập. Vì rãnh trong quay cùng trục, nên khi vết lỗi ở vùng chịu tải thì va đập mạnh, khi ra ngoài vùng chịu tải thì va đập yếu hơn – tạo ra hiệu ứng 'điều biên' (amplitude modulation) rất đặc trưng."
+> 💡 **Ngôn ngữ kỹ sư:** "Mỗi khi viên bi lăn qua vết lõm trên rãnh trong, nó tạo ra một cú va đập. Vì rãnh trong quay cùng trục, nên khi vết lỗi ở vùng chịu tải thì va đập mạnh, khi ra ngoài vùng chịu tải thì va đập yếu hơn – tạo ra hiệu ứng 'điều biên' (amplitude modulation) rất đặc trưng, với sidebands ở BPFI ± quay trục."
 
 #### Lỗi rãnh ngoài (Outer Race Fault)
 - Cũng có **xung lặp lại** với tần số = BPFO (Ball Pass Frequency Outer)
-- Xung thường có **biên độ ổn định hơn** (ít bị điều biên) vì vòng ngoài cố định – vết lỗi luôn ở cùng vị trí so với vùng chịu tải
-- Biên độ xung rõ ràng, dễ nhận biết nhất trong các loại lỗi
+- Xung thường có **biên độ ổn định hơn** (ít bị điều biên) vì vòng ngoài cố định – vết lỗi luôn ở cùng vị trí so với vùng chịu tải (khi lỗi ở vị trí 6 giờ)
+  - **Lưu ý:** CWRU dataset có OR fault ở 3 vị trí (3h, 6h, 12h). Khi vết lỗi ở 6h (trong vùng tải), xung ổn định. Khi ở 12h (ngoài vùng tải), xung lại bị điều biên.
+- Biên độ xung rõ ràng, dễ nhận biết nhất khi lỗi ở vùng chịu tải
 
-> 💡 **Ngôn ngữ kỹ sư:** "Vòng ngoài cố định nên vết lỗi không di chuyển. Mỗi viên bi lăn qua đều va đập với cùng cường độ → tín hiệu xung đều đặn, rất 'sạch'. Đây là loại lỗi dễ chẩn đoán nhất bằng phân tích rung."
+> 💡 **Ngôn ngữ kỹ sư:** "Vòng ngoài cố định nên vết lỗi không di chuyển. Khi vết lỗi ở vùng chịu tải (6h), mỗi viên bi lăn qua đều va đập với cùng cường độ → tín hiệu xung đều đặn, rất 'sạch'. Đây là loại lỗi dễ chẩn đoán nhất bằng phân tích rung (nếu lỗi ở vị trí thuận lợi)."
 
 #### Lỗi bi (Ball Fault)
 - Tín hiệu phức tạp hơn: xung lặp theo tần số BSF (Ball Spin Frequency)
@@ -228,7 +230,7 @@ Sau buổi thực hành, học viên sẽ:
 | **OR fault** | Đỉnh rõ ở BPFO và bội số, thường sạch hơn (ít sideband) |
 | **Ball fault** | Đỉnh ở BSF và bội số, nhưng biên độ thấp hơn, khó phân biệt với nhiễu nền |
 
-> 💡 **Mẹo thực tế:** Với ổ SKF 6205, ở tốc độ ~1750 RPM: BPFI ≈ 162 Hz, BPFO ≈ 107 Hz, BSF ≈ 141 Hz. Khi phân tích phổ, hãy nhìn vào các dải tần này trước.
+> 💡 **Mẹo thực tế:** Với ổ SKF 6205, ở tốc độ ~1797 RPM (không tải): BPFI ≈ 162 Hz, BPFO ≈ 107 Hz, BSF ≈ 141 Hz (= 2×BSF cơ bản). Khi phân tích phổ, hãy nhìn vào các dải tần này trước.
 
 ### 5.3. Spectrogram (Phổ thời gian–tần số)
 
@@ -272,10 +274,12 @@ Spectrogram hiển thị **sự thay đổi năng lượng theo cả thời gian
 
 #### Kurtosis (Độ nhọn)
 
-- **Ý nghĩa:** Phát hiện xung va chạm trong tín hiệu. Tín hiệu bình thường (dạng Gaussian) có kurtosis ≈ 3. Khi có xung nhọn → kurtosis tăng vọt
+- **Ý nghĩa:** Phát hiện xung va chạm trong tín hiệu. Tín hiệu bình thường (dạng Gaussian) có kurtosis Pearson ≈ 3. Khi có xung nhọn → kurtosis tăng vọt
+  - **Lưu ý:** `scipy.stats.kurtosis()` trả về *excess kurtosis* (fisher=True mặc định), không phải Pearson kurtosis. Excess kurtosis Gaussian ≈ 0, do đó Pearson = excess + 3.
+  - Để dùng định nghĩa Pearson (normal=3), dùng `scipy.stats.kurtosis(x, fisher=False)`
 - **Kỳ vọng:**
-  - Normal: Kurtosis ≈ 3 (phân bố chuẩn)
-  - IR / OR / Ball: Kurtosis >> 3, đặc biệt ở giai đoạn đầu hỏng (xung rõ, chưa bị lan rộng)
+  - Normal: Kurtosis Pearson ≈ 3 (phân bố chuẩn)
+  - IR / OR / Ball: Kurtosis Pearson >> 3 (thường >6–10), đặc biệt ở giai đoạn đầu hỏng (xung rõ, chưa bị lan rộng)
 
 > 💡 **Ngôn ngữ kỹ sư:** "Kurtosis là 'công cụ phát hiện sớm' tuyệt vời. Ở giai đoạn rất sớm khi ổ lăn mới bắt đầu có vết nứt nhỏ, RMS có thể chưa tăng đáng kể, nhưng kurtosis đã tăng rõ rệt vì mỗi viên bi lăn qua vết nứt tạo ra xung nhọn – dù nhỏ nhưng đủ để kurtosis 'nhìn thấy'."
 
@@ -301,6 +305,30 @@ Khi vẽ boxplot các đặc trưng theo từng lớp lỗi, ta thường thấy
 | **Spectral Kurtosis** | Tăng ở dải tần cộng hưởng | Tăng ở dải tần cộng hưởng | Tăng ít |
 
 > 💡 **Kết luận cho kỹ sư:** "Không có một đặc trưng duy nhất nào hoàn hảo. Sức mạnh của ML nằm ở chỗ **kết hợp nhiều đặc trưng** cùng lúc để đưa ra chẩn đoán chính xác. SVM và Random Forest sẽ tự tìm ra 'công thức phối hợp' tối ưu giữa các đặc trưng – và SHAP sẽ cho ta biết 'công thức' đó là gì."
+
+---
+
+## 6. Công thức tính tần số lỗi cho ổ lăn bất kỳ
+
+Các giá trị BPFO, BPFI, FTF, BSF ở trên dùng cho SKF 6205 @ 1797 RPM. Nếu bạn muốn tính cho ổ lăn khác hoặc tốc độ quay khác, dùng công thức chuẩn ISO:
+
+**Ký hiệu:**
+- `fr` = tần số quay trục (shaft frequency) = RPM / 60 [Hz]
+- `nb` = số viên bi trong ổ lăn [số]
+- `bd` = đường kính viên bi [mm]
+- `pd` = đường kính lồng bi (pitch diameter) [mm]
+- `φ` = góc tiếp xúc (contact angle) [độ]
+
+**Công thức:**
+
+```
+BPFO = (nb/2) × fr × [1 - (bd/pd) × cos(φ)]  ← Outer race
+BPFI = (nb/2) × fr × [1 + (bd/pd) × cos(φ)]  ← Inner race
+FTF = fr × [1 - (bd/pd) × cos(φ)] / 2         ← Cage frequency
+BSF = (pd/2bd) × fr × [1 - (bd/pd)²]          ← Ball spin frequency
+```
+
+**Ví dụ SKF 6205:** `nb=9, bd=7.94mm, pd=38.5mm, φ=0°, fr=29.95 Hz` → BPFO≈107 Hz, BPFI≈162 Hz, FTF≈11.9 Hz, BSF≈70.6 Hz (⚠️ CWRU dùng 2×BSF=141 Hz).
 
 ---
 

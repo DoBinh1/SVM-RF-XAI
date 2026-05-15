@@ -34,9 +34,10 @@ def time_domain_features(segment):
 
         'peak_to_peak': np.max(segment) - np.min(segment),
 
-        'kurtosis': sp_stats.kurtosis(segment),
-        # Kurtosis > 3: có xung nhọn → va chạm từ điểm lỗi
-        # Kurtosis > 6: cần chú ý; > 10: cần hành động ngay
+        'kurtosis': sp_stats.kurtosis(segment, fisher=False),
+        # Kurtosis Pearson (normal=3). Ngưỡng: >6 cần theo dõi, >10 cần hành động ngay
+        # scipy.stats.kurtosis(..., fisher=False) trả về Pearson kurtosis (normal Gaussian = 3)
+        # Lỗi ổ lăn tạo xung → kurtosis tăng vọt (rất nhạy với va chạm sắc nét)
 
         'skewness': sp_stats.skew(segment),
 
@@ -92,8 +93,8 @@ def frequency_domain_features(segment, fs=FS):
         # Tần số trung tâm — dịch cao khi có lỗi ổ lăn
         'spectral_centroid': np.sum(freqs * fft_vals**2) / total_energy,
 
-        # Tần số có biên độ lớn nhất
-        'dominant_freq': freqs[np.argmax(fft_vals)] if len(fft_vals) > 0 else 0,
+        # Tần số có biên độ lớn nhất (loại DC bin để tránh 0 Hz)
+        'dominant_freq': freqs[1:][np.argmax(fft_vals[1:])] if len(fft_vals) > 1 else freqs[1] if len(freqs) > 1 else 0,
     }
     return features
 
@@ -129,7 +130,9 @@ def envelope_features(segment, fs=FS,
     df = fs / n  # Độ phân giải tần số
 
     def energy_around(center_freq):
-        bw = max(bandwidth_hz, 3*df)
+        # Với WINDOW_SIZE=16384, df=2.93 Hz → bandwidth_hz=10 Hz đủ để tách biệt các tần số lỗi
+        # BPFI (162 Hz), BSF (141 Hz), BPFO (107 Hz) sẽ nằm trong cửa sổ ±10 Hz mà không chồng lấp
+        bw = bandwidth_hz  # Không dùng max(..., 3*df) nữa
         mask = (env_freqs >= center_freq - bw) & (env_freqs <= center_freq + bw)
         return np.sum(env_fft[mask]**2) if mask.any() else 0.0
 
@@ -145,8 +148,8 @@ def envelope_features(segment, fs=FS,
         'env_energy_BSF': energy_around(bsf),
         # Năng lượng envelope tại 141 Hz → mạnh nếu lỗi bi (Ball)
 
-        'envelope_kurtosis': sp_stats.kurtosis(envelope),
-        # Kurtosis envelope — rất nhạy với xung lặp lại
+        'envelope_kurtosis': sp_stats.kurtosis(envelope, fisher=False),
+        # Kurtosis Pearson của đường bao — rất nhạy với xung lặp lại (va chạm)
 
         'envelope_rms': env_rms,
         # Mức rung trong vùng cộng hưởng

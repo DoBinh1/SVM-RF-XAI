@@ -122,6 +122,8 @@ background = shap.sample(X_train, 200)
 explainer_rf = shap.TreeExplainer(rf_model)
 
 # Tạo explainer cho SVM (chậm hơn, cần background)
+# ⚠️ LƯU Ý: SVC phải được khởi tạo với probability=True để có .predict_proba()
+#   Ví dụ: SVC(kernel='rbf', probability=True, ...)
 explainer_svm = shap.KernelExplainer(svm_clf.predict_proba, background)
 ```
 
@@ -135,12 +137,26 @@ shap_values = explainer_rf.shap_values(X_test[:200])
 ### 4.3. Vẽ các biểu đồ SHAP
 
 ```python
-# Summary plot – tổng quan feature importance
-shap.summary_plot(shap_values, X_test[:200])
+# TreeExplainer cho Random Forest (nhanh)
+explainer_rf = shap.TreeExplainer(rf_model)
+shap_values_rf = explainer_rf.shap_values(X_test_scaled)  # shape: (n_samples, n_features, n_classes)
 
-# Waterfall plot – giải thích một mẫu cụ thể
-shap.waterfall_plot(shap.Explanation(...))
+# Summary plot – tổng quan feature importance cho class 0
+shap.summary_plot(shap_values_rf[:, :, 0], X_test_scaled, feature_names=feature_names)
+
+# Waterfall plot – giải thích một mẫu cụ thể cho class 0
+sample_idx = 0
+cls_idx = 0
+explanation = shap.Explanation(
+    values=shap_values_rf[sample_idx, :, cls_idx],
+    base_values=explainer_rf.expected_value[cls_idx],
+    data=X_test.iloc[sample_idx].values,
+    feature_names=feature_names
+)
+shap.plots.waterfall(explanation, max_display=12, show=False)
 ```
+
+**Lưu ý phiên bản SHAP:** Đoạn code này dùng SHAP >= 0.41 với API `shap.plots.waterfall()`. Nếu dùng phiên bản cũ hơn, thay bằng `shap.waterfall_plot(explanation)`.
 
 ---
 
@@ -171,10 +187,10 @@ shap.waterfall_plot(shap.Explanation(...))
 Biểu đồ này giải thích **một mẫu cụ thể** – ví dụ một segment rung mà mô hình chẩn đoán là "lỗi rãnh trong":
 
 ```
-Base value (0.25)   ── trung bình chung
-  + RMS = 3.2       ── +0.35 (RMS cao → tăng xác suất lỗi)
-  + Kurtosis = 12    ── +0.20 (kurtosis cao → có xung va chạm)
-  + FFT_energy = 0.8 ── +0.15 (năng lượng tần số cao)
+Base value (0.25)     ── trung bình chung
+  + RMS = 3.2        ── +0.35 (RMS cao → tăng xác suất lỗi)
+  + Kurtosis = 8.5   ── +0.20 (Pearson; > 6 → có xung va chạm rõ rệt)
+  + FFT_energy = 0.8 ── +0.15 (năng lượng tần số cao quanh BPFI)
   – Crest_factor = 2 ── –0.03 (crest factor thấp, hơi mâu thuẫn)
   ═══════════════════
   = Dự đoán: 0.92 (Inner Race Fault)
@@ -219,8 +235,8 @@ Base value (0.25)   ── trung bình chung
 **Tình huống:** Mô hình chẩn đoán quạt hút bụi nhà máy → "Lỗi bi – xác suất 72%"
 
 **SHAP waterfall cho thấy:**
-- Kurtosis = 5.2 → SHAP = +0.15 (tăng nhẹ so với bình thường = 3)
-- FFT energy dải BSF = 0.3 → SHAP = +0.10 (có năng lượng ở tần số đặc trưng lỗi bi)
+- Kurtosis = 5.2 (Pearson) → SHAP = +0.15 (tăng nhẹ so với bình thường Pearson ≈ 3)
+- FFT energy dải BSF = 0.3 → SHAP = +0.10 (có năng lượng ở tần số đặc trưng lỗi bi, nhưng mức thấp)
 - RMS = 1.8 → SHAP = +0.05 (RMS chưa tăng nhiều)
 - Peak = 4.1 → SHAP = +0.08 (có một vài xung nhưng chưa mạnh)
 
