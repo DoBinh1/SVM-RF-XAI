@@ -223,25 +223,36 @@ Sau buổi thực hành, học viên sẽ:
 - **Trục X**: Tần số (Hz) – cho biết "rung ở tần số nào"
 - **Trục Y**: Biên độ – cho biết "rung mạnh cỡ nào ở tần số đó"
 
-| Trạng thái | Đặc điểm phổ |
-|---|---|
-| **Normal** | Chỉ có đỉnh ở tần số quay (1×, 2×, 3× RPM), biên độ thấp |
-| **IR fault** | Xuất hiện đỉnh ở BPFI và các bội số (2×, 3× BPFI), có sideband quanh đỉnh (do điều biên) |
-| **OR fault** | Đỉnh rõ ở BPFO và bội số, thường sạch hơn (ít sideband) |
-| **Ball fault** | Đỉnh ở BSF và bội số, nhưng biên độ thấp hơn, khó phân biệt với nhiễu nền |
+> ⚠️ **Phân biệt rất quan trọng — FFT thô "thấy có lỗi" nhưng KHÔNG chỉ được "lỗi gì":**
+>
+> Lỗi ổ lăn là **xung va đập** nên kích thích **toàn bộ dải tần** (đồ án §2.5.1), năng lượng dồn lên **vùng cộng hưởng tự nhiên của kết cấu** (vài kHz–vài chục kHz). Vì vậy trên **FFT của tín hiệu thô**, khi ổ lăn hỏng ta chỉ thấy những thay đổi **không định lượng được**:
+> - **Nền phổ (noise floor) dâng lên** trên dải rộng;
+> - **Năng lượng vùng cộng hưởng tăng** rõ;
+> - Đỉnh tại BPFO/BPFI/BSF (~100–200 Hz) **rất mờ, bị chôn** dưới thành phần quay trục & nhiễu → **không tách/định lượng được tần số hư hỏng**.
+>
+> → Kết luận: **FFT thô** chỉ trả lời *"có bất thường"*; muốn biết *"lỗi loại gì, tần số nào"* phải dùng **phân tích phổ bao (envelope)** — nó *chỉ đích danh* các vạch BPFO/BPFI/BSF + bội số.
 
-> 💡 **Mẹo thực tế:** Với ổ **SKF 6205-2RS** (drive end), tần số đặc trưng lỗi tỉ lệ thuận với tần số quay trục $f_r$ (Hz). Các hệ số nhân do CWRU công bố sẵn cho 6205 (9 viên bi, $B_d/P_d ≈ 0.203$, góc tiếp xúc ≈ 0):
+**Phổ "đặc trưng lý tưởng" của từng lỗi (chỉ hiện rõ trên phổ bao / order, KHÔNG phải FFT thô):**
+
+| Trạng thái | Đặc điểm phổ (trên phổ bao) | Trên FFT thô |
+|---|---|---|
+| **Normal** | Chỉ đỉnh tại tần số quay 1×, 2×, 3×, biên độ thấp | Phổ "sạch", nền thấp |
+| **IR fault** | Đỉnh BPFI + bội số, có **sideband ± f_r** (điều biên do vết lỗi quay vào/ra vùng tải) | Nền & vùng cộng hưởng tăng; vạch BPFI mờ/khó thấy |
+| **OR fault** | Đỉnh BPFO + bội số, **ít sideband** (vết lỗi cố định) | Nền & vùng cộng hưởng tăng mạnh; vạch BPFO mờ |
+| **Ball fault** | Đỉnh 2·BSF + bội, kèm điều biên theo FTF; biên độ nhỏ nhất | Thay đổi nhẹ nhất, khó phân biệt với nhiễu nền |
+
+> 💡 **Công thức chuẩn (đối chiếu ĐATN Đỗ Danh Thanh Bình, eq. 2.48–2.51).** Với ổ lăn có $n$ viên bi, đường kính bi $d$, đường kính vòng chia $D$, góc tiếp xúc $\phi$, tần số quay trục $f_r$ (Hz):
 >
-> | Tần số | Ý nghĩa | Hệ số × $f_r$ |
+> | Tần số | Công thức (cơ bản, bậc 1) | Hệ số × $f_r$ cho SKF 6205 ($d/D≈0.204,\ \phi≈0,\ n=9$) |
 > |---|---|---|
-> | **BPFO** | Ball Pass Frequency Outer – bi qua vết lỗi rãnh **ngoài** | **3.585** |
-> | **BPFI** | Ball Pass Frequency Inner – bi qua vết lỗi rãnh **trong** | **5.415** |
-> | **BSF** | Ball (Spin) Fault – tần số lỗi bi | **4.714** |
-> | **FTF** | Fundamental Train Frequency – tần số lồng bi | **0.398** |
+> | **BPFO** | $\dfrac{n}{2}\left(1-\dfrac{d}{D}\cos\phi\right) f_r$ | **3.585** |
+> | **BPFI** | $\dfrac{n}{2}\left(1+\dfrac{d}{D}\cos\phi\right) f_r$ | **5.415** |
+> | **BSF** (tự quay bi, cơ bản) | $\dfrac{D}{2d}\left[1-\left(\dfrac{d}{D}\cos\phi\right)^2\right] f_r$ | **≈ 2.357** |
+> | **FTF** | $\dfrac{1}{2}\left(1-\dfrac{d}{D}\cos\phi\right) f_r$ | **0.398** |
 >
-> Ở **0 HP (~1797 RPM)** → $f_r = 1797/60 ≈ 29.95$ Hz, nên: **BPFO ≈ 107 Hz, BPFI ≈ 162 Hz, BSF ≈ 141 Hz, FTF ≈ 12 Hz**. Khi tải tăng (RPM giảm), các tần số này **giảm theo tỉ lệ** — ví dụ ở 2 HP (~1750 RPM): BPFO ≈ 105 Hz, BPFI ≈ 158 Hz. Khi phân tích phổ, hãy nhìn vào các dải tần này trước.
+> Ở **0 HP (~1797 RPM)** → $f_r ≈ 29.95$ Hz: **BPFO ≈ 107 Hz, BPFI ≈ 162 Hz, FTF ≈ 12 Hz**, và **BSF cơ bản ≈ 70.6 Hz**. Khi tải tăng (RPM giảm), mọi tần số **giảm theo tỉ lệ** — ví dụ ở 2 HP (~1750 RPM): BPFO ≈ 105 Hz, BPFI ≈ 158 Hz.
 >
-> ⚠️ **Lưu ý về BSF:** Giá trị ~141 Hz (hệ số 4.714) là **tần số *lỗi* bi**, đã gấp đôi tần số tự quay cơ bản của viên bi (~70.6 Hz ở 0 HP). Lý do: một vết lỗi trên viên bi đập vào **cả rãnh trong lẫn rãnh ngoài** trong mỗi vòng tự quay, nên xuất hiện ở 2× tần số spin. Đây là quy ước CWRU công bố sẵn — giữ nguyên tên "BSF" để khớp tài liệu gốc.
+> ⚠️ **Bản chất tần số lỗi bi (rất hay nhầm):** Công thức **BSF** ở trên cho **tần số tự quay cơ bản của viên bi** (≈ 2.357·$f_r$ ≈ **70.6 Hz** ở 0 HP). Nhưng một vết lỗi *trên viên bi* đập vào **cả rãnh trong lẫn rãnh ngoài** trong **mỗi vòng tự quay** → xung lỗi bi thực tế xuất hiện ở **2·BSF ≈ 141 Hz** (hệ số ≈ 4.714). Đây chính là con số CWRU lập bảng sẵn cho lớp Ball. Vậy: **BSF cơ bản ≈ 70.6 Hz; tần số *lỗi* bi quan sát được ≈ 2·BSF ≈ 141 Hz** — notebook đánh dấu lớp Ball ở ~141 Hz là dùng giá trị 2·BSF này.
 
 ### 5.3. Spectrogram (Phổ thời gian–tần số)
 

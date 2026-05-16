@@ -2,3 +2,9 @@ CWRU Data/
 *.pyc
 __pycache__/
 .ipynb_checkpoints/
+
+# Claude Code local settings & memory
+.claude/
+
+# Tài liệu tham khảo PDF (không đẩy lên repo công khai)
+*.pdf
