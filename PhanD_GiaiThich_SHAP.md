@@ -122,6 +122,11 @@ background = shap.sample(X_train, 200)
 explainer_rf = shap.TreeExplainer(rf_model)
 
 # Tạo explainer cho SVM (chậm hơn, cần background)
+# ⚠️ BẮT BUỘC: svm_clf phải được khởi tạo với probability=True
+#    -> SVC(kernel='rbf', probability=True). Nếu không, .predict_proba()
+#    không tồn tại và KernelExplainer sẽ lỗi AttributeError.
+# ⚠️ probability=True khiến SVM huấn luyện CHẬM hơn nhiều (~3–5×) vì
+#    sklearn phải chạy Platt scaling (CV 5-fold nội bộ) để hiệu chỉnh xác suất.
 explainer_svm = shap.KernelExplainer(svm_clf.predict_proba, background)
 ```
 
@@ -129,18 +134,50 @@ explainer_svm = shap.KernelExplainer(svm_clf.predict_proba, background)
 
 ```python
 # Tính SHAP cho subset test (ví dụ 200 mẫu)
-shap_values = explainer_rf.shap_values(X_test[:200])
+shap_values_raw = explainer_rf.shap_values(X_test[:200])
+
+# ⚠️ Với bài toán NHIỀU LỚP (Normal/IR/OR/B), shap_values có 2 dạng tùy phiên bản:
+#   - SHAP cũ (< 0.42): trả về list, mỗi phần tử là mảng (n_mẫu, n_đặc_trưng) cho 1 lớp
+#   - SHAP mới (>= 0.42): trả về mảng 3D (n_mẫu, n_đặc_trưng, n_lớp)
+# Code dưới đây xử lý được cả hai → tách thành list theo từng lớp:
+if isinstance(shap_values_raw, list):
+    shap_values = shap_values_raw                       # đã là list theo lớp
+else:
+    shap_values = [shap_values_raw[:, :, c]             # cắt mảng 3D theo lớp
+                   for c in range(shap_values_raw.shape[2])]
+# shap_values[k] = đóng góp của các đặc trưng cho LỚP thứ k
 ```
 
 ### 4.3. Vẽ các biểu đồ SHAP
 
 ```python
-# Summary plot – tổng quan feature importance
-shap.summary_plot(shap_values, X_test[:200])
+import numpy as np
 
-# Waterfall plot – giải thích một mẫu cụ thể
-shap.waterfall_plot(shap.Explanation(...))
+class_names = list(le.classes_)          # ['B', 'IR', 'Normal', 'OR']
+
+# --- Summary plot cho MỘT lớp cụ thể (ví dụ lớp 'OR') ---
+or_idx = class_names.index('OR')
+shap.summary_plot(shap_values[or_idx], X_test[:200],
+                   feature_names=list(X_test.columns), show=True)
+
+# --- Waterfall plot: giải thích CHÍNH XÁC 1 mẫu (mẫu thứ 0, lớp 'OR') ---
+sample_idx = 0
+# expected_value cũng có thể là scalar hoặc mảng theo lớp -> xử lý an toàn:
+ev = explainer_rf.expected_value
+base_val = ev[or_idx] if hasattr(ev, '__len__') else ev
+
+exp = shap.Explanation(
+    values=shap_values[or_idx][sample_idx],          # (n_đặc_trưng,) cho lớp OR
+    base_values=base_val,
+    data=X_test.iloc[sample_idx].values,             # GIÁ TRỊ VẬT LÝ gốc (chưa scale)
+    feature_names=list(X_test.columns)
+)
+shap.plots.waterfall(exp, max_display=10)            # API mới (shap >= 0.41)
 ```
+
+> 💡 **Hai lỗi thường gặp khi tự code:**
+> 1. **Lập chỉ số sai trên mảng 3D:** viết `shap_values[or_idx]` khi SHAP trả về mảng 3D `(n_mẫu, n_đặc_trưng, n_lớp)` sẽ lấy nhầm *mẫu* thứ `or_idx` chứ không phải *lớp* OR. Luôn tách list theo lớp như mục 4.2 trước.
+> 2. **Truyền dữ liệu đã scale vào `data=`:** waterfall sẽ hiển thị z-score (vd `kurtosis = 1.5`) thay vì giá trị vật lý (`kurtosis = 12`) → kỹ sư không đọc được. Random Forest **không cần scale**, nên hãy tính SHAP và hiển thị trên dữ liệu **gốc**.
 
 ---
 

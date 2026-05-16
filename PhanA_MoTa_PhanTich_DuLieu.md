@@ -78,6 +78,8 @@ Mỗi thí nghiệm chạy ở **4 mức tải** khác nhau:
 
 Trong đó `???` là mã số file (ví dụ: `X097_DE_time`).
 
+> 💡 **Trong khóa thực hành này:** Dữ liệu gốc `.mat` đã được **tiền xử lý sẵn**: tách riêng kênh DE và lưu thành file `.npy` (NumPy array) với tên dễ đọc (`Normal_DE.npy`, `IR_007_DE.npy`, …). Notebook chỉ cần `np.load(...)` là có ngay vector tín hiệu — không phải parse `.mat`. Bản chất dữ liệu không đổi, chỉ đổi vỏ bọc cho gọn.
+
 ### 2.2. Các lớp hư hỏng (Fault Classes)
 
 | Ký hiệu | Loại lỗi | Mô tả vật lý |
@@ -228,7 +230,18 @@ Sau buổi thực hành, học viên sẽ:
 | **OR fault** | Đỉnh rõ ở BPFO và bội số, thường sạch hơn (ít sideband) |
 | **Ball fault** | Đỉnh ở BSF và bội số, nhưng biên độ thấp hơn, khó phân biệt với nhiễu nền |
 
-> 💡 **Mẹo thực tế:** Với ổ SKF 6205, ở tốc độ ~1750 RPM: BPFI ≈ 162 Hz, BPFO ≈ 107 Hz, BSF ≈ 141 Hz. Khi phân tích phổ, hãy nhìn vào các dải tần này trước.
+> 💡 **Mẹo thực tế:** Với ổ **SKF 6205-2RS** (drive end), tần số đặc trưng lỗi tỉ lệ thuận với tần số quay trục $f_r$ (Hz). Các hệ số nhân do CWRU công bố sẵn cho 6205 (9 viên bi, $B_d/P_d ≈ 0.203$, góc tiếp xúc ≈ 0):
+>
+> | Tần số | Ý nghĩa | Hệ số × $f_r$ |
+> |---|---|---|
+> | **BPFO** | Ball Pass Frequency Outer – bi qua vết lỗi rãnh **ngoài** | **3.585** |
+> | **BPFI** | Ball Pass Frequency Inner – bi qua vết lỗi rãnh **trong** | **5.415** |
+> | **BSF** | Ball (Spin) Fault – tần số lỗi bi | **4.714** |
+> | **FTF** | Fundamental Train Frequency – tần số lồng bi | **0.398** |
+>
+> Ở **0 HP (~1797 RPM)** → $f_r = 1797/60 ≈ 29.95$ Hz, nên: **BPFO ≈ 107 Hz, BPFI ≈ 162 Hz, BSF ≈ 141 Hz, FTF ≈ 12 Hz**. Khi tải tăng (RPM giảm), các tần số này **giảm theo tỉ lệ** — ví dụ ở 2 HP (~1750 RPM): BPFO ≈ 105 Hz, BPFI ≈ 158 Hz. Khi phân tích phổ, hãy nhìn vào các dải tần này trước.
+>
+> ⚠️ **Lưu ý về BSF:** Giá trị ~141 Hz (hệ số 4.714) là **tần số *lỗi* bi**, đã gấp đôi tần số tự quay cơ bản của viên bi (~70.6 Hz ở 0 HP). Lý do: một vết lỗi trên viên bi đập vào **cả rãnh trong lẫn rãnh ngoài** trong mỗi vòng tự quay, nên xuất hiện ở 2× tần số spin. Đây là quy ước CWRU công bố sẵn — giữ nguyên tên "BSF" để khớp tài liệu gốc.
 
 ### 5.3. Spectrogram (Phổ thời gian–tần số)
 
@@ -275,7 +288,13 @@ Spectrogram hiển thị **sự thay đổi năng lượng theo cả thời gian
 - **Ý nghĩa:** Phát hiện xung va chạm trong tín hiệu. Tín hiệu bình thường (dạng Gaussian) có kurtosis ≈ 3. Khi có xung nhọn → kurtosis tăng vọt
 - **Kỳ vọng:**
   - Normal: Kurtosis ≈ 3 (phân bố chuẩn)
-  - IR / OR / Ball: Kurtosis >> 3, đặc biệt ở giai đoạn đầu hỏng (xung rõ, chưa bị lan rộng)
+  - IR / OR / Ball: Kurtosis >> 3 (thường > 6), đặc biệt ở giai đoạn đầu hỏng (xung rõ, chưa bị lan rộng)
+
+> ⚠️ **Lưu ý kỹ thuật (rất hay nhầm):** Có **hai định nghĩa kurtosis**:
+> - **Pearson (raw kurtosis):** Gaussian = **3**. Đây là quy ước trong **chẩn đoán rung** (ISO 13373) và là con số "≈ 3" dùng xuyên suốt tài liệu này.
+> - **Fisher (excess kurtosis = Pearson − 3):** Gaussian = **0**. Đây là **mặc định của `scipy.stats.kurtosis()`** trong Python.
+>
+> → Trong notebook thực hành, ta gọi `sp_stats.kurtosis(x, fisher=False)` để dùng quy ước Pearson, nhờ vậy "Normal ≈ 3" trong code **khớp** với tài liệu. Ngưỡng cảnh báo thực tế: **> 3.5** (theo dõi), **> 6** (lên kế hoạch), **> 10** (hành động ngay).
 
 > 💡 **Ngôn ngữ kỹ sư:** "Kurtosis là 'công cụ phát hiện sớm' tuyệt vời. Ở giai đoạn rất sớm khi ổ lăn mới bắt đầu có vết nứt nhỏ, RMS có thể chưa tăng đáng kể, nhưng kurtosis đã tăng rõ rệt vì mỗi viên bi lăn qua vết nứt tạo ra xung nhọn – dù nhỏ nhưng đủ để kurtosis 'nhìn thấy'."
 
