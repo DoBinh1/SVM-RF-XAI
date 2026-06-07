@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fourier Transform Deep Dive - Lab HUST</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --card-light: #1f2937;
+            --border-color: #2e3b4e;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            
+            /* Accent Colors */
+            --color-s1: #2dd4bf; /* Teal */
+            --color-s2: #38bdf8; /* Sky Blue */
+            --color-s3: #ec4899; /* Hot Pink */
+            --color-composite: #c084fc; /* Purple */
+            --color-filtered: #fbbf24; /* Amber */
+            --hust-red: #d4232a;
+            
+            /* Status Colors */
+            --color-ok: #10b981;
+            --color-warn: #f59e0b;
+            --color-danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.5;
+            padding: 1.5rem;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, var(--card-bg) 0%, #151d30 100%);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-title h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(to right, #ffffff, var(--color-s2), var(--color-s1));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.2rem;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .header-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .hust-badge {
+            background-color: rgba(212, 35, 42, 0.15);
+            border: 1px solid var(--hust-red);
+            color: #ffffff;
+            padding: 0.3rem 0.8rem;
+            border-radius: 999px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        .hust-subtxt {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.3rem;
+        }
+
+        /* Presets Section */
+        .presets-wrapper {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.8rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .presets-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-right: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .preset-btn {
+            background-color: var(--card-light);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--color-s2);
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        .preset-btn.active {
+            background-color: var(--color-s2);
+            color: #0b0f19;
+            border-color: var(--color-s2);
+            font-weight: 600;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+        }
+
+        /* Layout Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 380px 1fr;
+            }
+        }
+
+        /* Left Side: Controls Panel */
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .control-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--color-s2);
+            padding-left: 0.6rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-card h3 .card-badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            background-color: var(--card-light);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--color-s1);
+        }
+
+        /* Signal Sliders Styles */
+        .signal-group {
+            border: 1px solid var(--border-color);
+            background-color: rgba(31, 41, 55, 0.3);
+            border-radius: 12px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .signal-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .signal-group.s1 { border-left: 4px solid var(--color-s1); }
+        .signal-group.s2 { border-left: 4px solid var(--color-s2); }
+        .signal-group.s3 { border-left: 4px solid var(--color-s3); }
+
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+        }
+
+        .slider-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .slider-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.2rem;
+        }
+
+        .slider-labels span.val-highlight {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 5px;
+            background: var(--border-color);
+            border-radius: 999px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .s1 input[type="range"]::-webkit-slider-thumb { background: var(--color-s1); }
+        .s2 input[type="range"]::-webkit-slider-thumb { background: var(--color-s2); }
+        .s3 input[type="range"]::-webkit-slider-thumb { background: var(--color-s3); }
+
+        /* General select & button elements */
+        .input-select {
+            width: 100%;
+            background-color: var(--card-light);
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .input-select:focus {
+            border-color: var(--color-s2);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .form-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .form-item label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Calculations Result Box */
+        .calc-box {
+            background-color: rgba(31, 41, 55, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.8rem;
+            font-size: 0.8rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .calc-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calc-item span.lbl {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .calc-item span.val {
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        /* Visual Panel (Right Column) */
+        .visual-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .canvas-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+
+        .canvas-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .canvas-card-header h3 {
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .canvas-card-header p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background-color: #070a10;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 250px;
+        }
+
+        #canvas3D {
+            height: 320px;
+        }
+
+        .canvas-actions {
+            position: absolute;
+            top: 1.2rem;
+            right: 1.2rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 10;
+        }
+
+        .action-btn {
+            background-color: rgba(31, 41, 55, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.3rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            backdrop-filter: blur(4px);
+        }
+
+        .action-btn:hover {
+            background-color: var(--card-light);
+            border-color: var(--color-s2);
+        }
+
+        .action-btn.active {
+            background-color: var(--color-s2);
+            color: #0b0f19;
+            border-color: var(--color-s2);
+            font-weight: 600;
+        }
+
+        /* 3D Canvas rotate helper badge */
+        .drag-helper {
+            position: absolute;
+            bottom: 1.2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Double Column for 2D Plots */
+        .plots-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .plots-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Math Card */
+        .math-section {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #172138 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .math-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .math-grid {
+                grid-template-columns: 1.2fr 1fr;
+            }
+        }
+
+        .math-txt {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            text-align: justify;
+        }
+
+        .math-txt p strong {
+            color: #ffffff;
+        }
+
+        .formula-display {
+            background-color: #070a10;
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--color-s3);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .formula-latex {
+            font-family: 'Cambria Math', Georgia, serif;
+            font-size: 1.4rem;
+            color: #ffffff;
+            letter-spacing: 0.05em;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+        }
+
+        .formula-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Fault description card overlay */
+        .fault-desc-card {
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            font-size: 0.8rem;
+            display: none;
+        }
+
+        .fault-desc-card.active {
+            display: block;
+        }
+
+        .fault-desc-card h4 {
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        /* Filter controls */
+        .filter-status-box {
+            position: absolute;
+            bottom: 0.8rem;
+            right: 0.8rem;
+            background-color: rgba(251, 191, 36, 0.15);
+            border: 1px solid var(--color-filtered);
+            color: var(--color-filtered);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            display: none;
+        }
+
+        .filter-status-box.active {
+            display: block;
+        }
+
+        /* Footer styling */
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 2rem;
+        }
+
+        footer strong {
+            color: var(--color-s1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- ── HEADER ── -->
+    <header>
+        <div class="header-title">
+            <h1>Trực Quan Hóa Biến Đổi Fourier (FFT) Tương Tác</h1>
+            <p>Học trực quan các thông số lấy mẫu, hiện tượng Aliasing, Rò rỉ phổ, Windowing và Lọc phổ IFFT</p>
+        </div>
+        <div class="header-logo">
+            <span class="hust-badge">LAB HUST - BK.AI</span>
+            <span class="hust-subtxt">Chẩn đoán kỹ thuật số & AI</span>
+        </div>
+    </header>
+
+    <!-- ── PRESETS BAR ── -->
+    <div class="presets-wrapper">
+        <span class="presets-title">Mô phỏng lỗi:</span>
+        <button class="preset-btn active" id="btn-p-custom" onclick="loadPreset('custom')">🎛️ Tùy chỉnh</button>
+        <button class="preset-btn" id="btn-p-normal" onclick="loadPreset('normal')">🟢 Bình thường</button>
+        <button class="preset-btn" id="btn-p-unbalance" onclick="loadPreset('unbalance')">🔴 Roto Mất Cân Bằng (1X)</button>
+        <button class="preset-btn" id="btn-p-misalignment" onclick="loadPreset('misalignment')">🟡 Trục Lệch Tâm (1X & 2X)</button>
+        <button class="preset-btn" id="btn-p-looseness" onclick="loadPreset('looseness')">🟠 Rơ Lỏng Cơ Khí (Hài bậc cao)</button>
+        <button class="preset-btn" id="btn-p-bearing" onclick="loadPreset('bearing')">🟣 Hỏng Ổ Bi BPFI (Dải biên sidebands)</button>
+        <button class="preset-btn" id="btn-p-gear" onclick="loadPreset('gear')">🔵 Hỏng Răng GMF (Sóng mang)</button>
+    </div>
+
+    <!-- ── MAIN GRID ── -->
+    <div class="main-grid">
+        
+        <!-- LEFT: CONTROLS PANEL -->
+        <div class="controls-panel">
+            
+            <!-- Explainer Card for active preset -->
+            <div class="control-card" style="padding: 1rem;" id="preset-info-card">
+                <div class="fault-desc-card active" id="desc-custom">
+                    <h4 style="color: var(--color-s2)">🎛️ Chế độ Tùy chỉnh</h4>
+                    <p style="color: var(--text-muted)">Bạn có thể tự do thay đổi tần số, biên độ của 3 sóng hình sin thành phần, điều chỉnh tần số lấy mẫu (Fs), số điểm (N) và áp dụng các cửa sổ để xem các hiện tượng toán học tự phát sinh.</p>
+                </div>
+                <div class="fault-desc-card" id="desc-normal">
+                    <h4 style="color: var(--color-ok)">🟢 Thiết bị Hoạt động Bình thường</h4>
+                    <p style="color: var(--text-muted)">Không có xung đột kích thước, dao động rất nhỏ. Phổ FFT chỉ có các đỉnh nhỏ từ nhiễu nền và tần số quay chính (30Hz/1X) ở mức vô hại dưới 0.2g.</p>
+                </div>
+                <div class="fault-desc-card" id="desc-unbalance">
+                    <h4 style="color: var(--color-danger)">🔴 Lỗi Roto Mất Cân Bằng</h4>
+                    <p style="color: var(--text-muted)">Hiện tượng lệch tâm khối lượng làm roto phát sinh lực ly tâm mạnh quay cùng tốc độ trục. FFT xuất hiện đỉnh duy nhất cực lớn tại tần số quay trục 1X (30Hz).</p>
+                </div>
+                <div class="fault-desc-card" id="desc-misalignment">
+                    <h4 style="color: var(--color-warn)">🟡 Lỗi Lệch Tâm Khớp Nối</h4>
+                    <p style="color: var(--text-muted)">Hai trục động cơ và tải không đồng tâm. Vết bẻ gập sinh ra rung động cưỡng bức tuần hoàn. FFT hiển thị đỉnh rõ rệt tại cả tần số 1X (30Hz) và đặc biệt là 2X (60Hz).</p>
+                </div>
+                <div class="fault-desc-card" id="desc-looseness">
+                    <h4 style="color: var(--color-warn)">🟠 Lỗi Rơ Lỏng Cơ Khí</h4>
+                    <p style="color: var(--text-muted)">Các bu lông móng bệ máy bị lỏng làm chân máy nảy lên hạ xuống va đập. Chuyển động không tuyến tính tạo ra một chuỗi dài các đỉnh hài (harmonics) 1X, 2X, 3X, 4X, 5X... liên tiếp trên FFT.</p>
+                </div>
+                <div class="fault-desc-card" id="desc-bearing">
+                    <h4 style="color: var(--color-danger)">🟣 Lỗi Vòng Trong Ổ Lăn (BPFI)</h4>
+                    <p style="color: var(--text-muted)">Khi vết nứt xuất hiện ở vòng trong, các con lăn đi qua sẽ sinh ra va đập tần số cao BPFI (162Hz). Do roto quay liên tục làm đổi vùng tải, lực va đập bị điều chế biên độ bởi tần số quay trục 1X, sinh ra các đỉnh dải biên (sidebands) ở 162Hz ± 30Hz (132Hz và 192Hz).</p>
+                </div>
+                <div class="fault-desc-card" id="desc-gear">
+                    <h4 style="color: #38bdf8">🔵 Lỗi Bánh Răng (Mẻ Răng)</h4>
+                    <p style="color: var(--text-muted)">Khi hai bánh răng khớp nhau, chúng tạo ra tần số ăn khớp GMF (240Hz). Vết mẻ răng phát sinh xung động điều chế biên độ mỗi vòng quay. FFT xuất hiện đỉnh lớn tại tần số sóng mang GMF (240Hz) và các dải biên cách nhau đúng tốc độ quay của trục 1X (30Hz).</p>
+                </div>
+            </div>
+
+            <!-- Signal Generator Card -->
+            <div class="control-card">
+                <h3>Bộ Tạo Tín Hiệu Sóng <span class="card-badge">y(t) = y₁ + y₂ + y₃</span></h3>
+                
+                <!-- Wave 1 -->
+                <div class="signal-group s1">
+                    <div class="signal-header" style="color: var(--color-s1)">Sóng Thành Phần y₁</div>
+                    <div class="slider-item">
+                        <div class="slider-labels"><span>Tần số (f₁)</span><span class="val-highlight" id="lbl-f1">30 Hz</span></div>
+                        <input type="range" id="input-f1" min="10" max="300" value="30" oninput="onSignalChange()">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-labels"><span>Biên độ (A₁)</span><span class="val-highlight" id="lbl-a1">1.0 g</span></div>
+                        <input type="range" id="input-a1" min="0" max="30" value="10" oninput="onSignalChange()">
+                    </div>
+                </div>
+
+                <!-- Wave 2 -->
+                <div class="signal-group s2">
+                    <div class="signal-header" style="color: var(--color-s2)">Sóng Thành Phần y₂</div>
+                    <div class="slider-item">
+                        <div class="slider-labels"><span>Tần số (f₂)</span><span class="val-highlight" id="lbl-f2">60 Hz</span></div>
+                        <input type="range" id="input-f2" min="10" max="300" value="60" oninput="onSignalChange()">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-labels"><span>Biên độ (A₂)</span><span class="val-highlight" id="lbl-a2">0.0 g</span></div>
+                        <input type="range" id="input-a2" min="0" max="30" value="0" oninput="onSignalChange()">
+                    </div>
+                </div>
+
+                <!-- Wave 3 -->
+                <div class="signal-group s3">
+                    <div class="signal-header" style="color: var(--color-s3)">Sóng Thành Phần y₃</div>
+                    <div class="slider-item">
+                        <div class="slider-labels"><span>Tần số (f₃)</span><span class="val-highlight" id="lbl-f3">162 Hz</span></div>
+                        <input type="range" id="input-f3" min="10" max="450" value="162" oninput="onSignalChange()">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-labels"><span>Biên độ (A₃)</span><span class="val-highlight" id="lbl-a3">0.0 g</span></div>
+                        <input type="range" id="input-a3" min="0" max="30" value="0" oninput="onSignalChange()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- FFT Settings Card -->
+            <div class="control-card">
+                <h3>Tham Số Thu Thập & FFT</h3>
+                
+                <div class="form-row">
+                    <div class="form-item">
+                        <label for="select-fs">Tần số lấy mẫu (Fs)</label>
+                        <select class="input-select" id="select-fs" onchange="onFftParamChange()">
+                            <option value="200">200 Hz</option>
+                            <option value="350">350 Hz</option>
+                            <option value="500" selected>500 Hz</option>
+                            <option value="1000">1000 Hz</option>
+                        </select>
+                    </div>
+                    <div class="form-item">
+                        <label for="select-n">Số điểm lấy mẫu (N)</label>
+                        <select class="input-select" id="select-n" onchange="onFftParamChange()">
+                            <option value="256" selected>256 điểm</option>
+                            <option value="512">512 điểm</option>
+                            <option value="1024">1024 điểm</option>
+                            <option value="2048">2048 điểm</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row" style="grid-template-columns: 1fr;">
+                    <div class="form-item">
+                        <label for="select-window">Cửa sổ FFT (Windowing)</label>
+                        <select class="input-select" id="select-window" onchange="onFftParamChange()">
+                            <option value="rectangular" selected>Rectangular (Không cửa sổ)</option>
+                            <option value="hanning">Hanning (Mặc định công nghiệp)</option>
+                            <option value="hamming">Hamming (Cực tiểu hóa thùy bên)</option>
+                            <option value="flattop">Flat Top (Đo biên độ chính xác)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="calc-box">
+                    <div class="calc-item">
+                        <span class="lbl">Tần số Nyquist (Fs/2):</span>
+                        <span class="val" id="val-nyquist">250 Hz</span>
+                    </div>
+                    <div class="calc-item">
+                        <span class="lbl">Độ phân giải (Δf = Fs/N):</span>
+                        <span class="val" id="val-resolution">1.95 Hz</span>
+                    </div>
+                    <div class="calc-item" style="grid-column: span 2">
+                        <span class="lbl">Thời gian thu mẫu (Ta = N/Fs):</span>
+                        <span class="val" id="val-time">0.51 giây (512 ms)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: VISUAL PANEL -->
+        <div class="visual-panel">
+            
+            <!-- Module 1: 3D Fourier Carousel Canvas -->
+            <div class="canvas-card">
+                <div class="canvas-card-header">
+                    <h3>🎡 Không Gian 3D Fourier Carousel</h3>
+                    <p>Giả lập 3D hệ trục: Thời gian (t) x Tần số (f) x Biên độ (A)</p>
+                </div>
+                <div class="canvas-actions">
+                    <button class="action-btn" id="btn-rot-time" onclick="tween3DView(Math.PI/2, 0)">👁️ Miền Thời gian</button>
+                    <button class="action-btn" id="btn-rot-freq" onclick="tween3DView(0, 0)">👁️ Miền Tần số</button>
+                    <button class="action-btn" id="btn-rot-iso" onclick="tween3DView(Math.PI/6, -Math.PI/8)">👁️ Nhìn nghiêng</button>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="canvas3D"></canvas>
+                    <div class="drag-helper">🖱️ Kéo chuột trên canvas để xoay góc nhìn tự do</div>
+                </div>
+            </div>
+
+            <!-- Double Canvas Grid for Time / Frequency -->
+            <div class="plots-grid">
+                
+                <!-- Time Domain -->
+                <div class="canvas-card">
+                    <div class="canvas-card-header">
+                        <h3 style="color: var(--color-composite)">📈 Miền Thời Gian (Time Domain)</h3>
+                        <p id="time-sub">Mẫu liên tục x(t) thu được</p>
+                    </div>
+                    <div class="canvas-container">
+                        <canvas id="canvasTime"></canvas>
+                    </div>
+                </div>
+
+                <!-- Frequency Domain -->
+                <div class="canvas-card" id="freq-card">
+                    <div class="canvas-card-header">
+                        <h3 style="color: var(--color-s1)">📊 Miền Tần Số (Spectrum / FFT)</h3>
+                        <p id="freq-sub">Rơ chuột/Kéo thả để lọc dải tần (IFFT)</p>
+                    </div>
+                    <div class="canvas-actions">
+                        <button class="action-btn" style="color: var(--color-filtered)" id="btn-clear-filter" onclick="clearFilter()">❌ Xóa Lọc</button>
+                    </div>
+                    <div class="canvas-container">
+                        <canvas id="canvasFreq"></canvas>
+                        <div class="filter-status-box" id="filter-badge">Bộ lọc thông dải: 30 - 90 Hz</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Interactive Explainer / Math Section -->
+            <div class="math-section">
+                <h2>Cốt Lõi Toán Học & Các Hiện Tượng Kỹ Thuật</h2>
+                <div class="math-grid">
+                    <div class="math-txt">
+                        <p>
+                            <strong>1. Hiện tượng Aliasing (Gập Phổ):</strong> Xảy ra khi tần số tín hiệu lớn hơn tần số giới hạn Nyquist ($f > f_s / 2$). Thuật toán lấy mẫu không đủ nhanh sẽ làm sóng tần số cao giả dạng thành sóng tần số thấp. Kéo thử tần số $f_3$ lớn hơn Nyquist và xem đỉnh phổ di chuyển ảo trên FFT!
+                        </p>
+                        <p>
+                            <strong>2. Rò rỉ phổ (Spectral Leakage) & Cửa sổ (Windowing):</strong> Máy thu mẫu tín hiệu trong một khoảng thời gian hữu hạn $T_a$. Nếu sóng bị cắt đột ngột mà không tuần hoàn trong buffer, biên đổi Fourier coi vết cắt này là một cú sốc vô hạn, sinh ra hiện tượng "rò rỉ" năng lượng (đỉnh phổ bị loe ra). Áp dụng các **Cửa sổ (Windows)** (giống như bo tròn 2 đầu tín hiệu về 0) giúp hạn chế rò rỉ này, giúp phân biệt rõ các tần số đứng sát nhau.
+                        </p>
+                        <p>
+                            <strong>3. Bộ lọc Fourier & Biến đổi ngược (IFFT):</strong> Biến đổi Fourier không phá hủy tín hiệu, nó chỉ thay đổi cách biểu diễn. Bằng cách lọc bỏ các vạch tần số nhiễu trong miền tần số và dùng thuật toán **IFFT** (Inverse Fast Fourier Transform), ta khôi phục lại tín hiệu miền thời gian sạch hoàn hảo.
+                        </p>
+                    </div>
+                    <div class="formula-display">
+                        <div class="formula-latex">X(f) = &int; x(t) e<sup>-j2&pi;ft</sup> dt</div>
+                        <div class="formula-desc">Liên tục: Tích phân nhân với sóng hình sin phức</div>
+                        <div style="width: 100%; border-top: 1px solid var(--border-color); margin: 0.5rem 0;"></div>
+                        <div class="formula-latex">X[k] = &Sigma;<sub>n=0</sub><sup>N-1</sup> x[n] W<sub>N</sub><sup>kn</sup></div>
+                        <div class="formula-desc">Rời rạc (DFT/FFT) tính toán trong công nghiệp</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ── FOOTER ── -->
+    <footer>
+        <p>Bản quyền tài liệu & phần mềm trực quan thuộc về <strong>Lab HUST BKHN</strong> · Hỗ trợ Đào tạo Kỹ sư Bảo trì & Vận hành Nhà máy</p>
+    </footer>
+</div>
+
+<script>
+    // Constants
+    const PI = Math.PI;
+
+    // State Variables
+    let signals = {
+        s1: { f: 30, a: 1.0 },
+        s2: { f: 60, a: 0.0 },
+        s3: { f: 162, a: 0.0 }
+    };
+
+    let fftParams = {
+        fs: 500,     // Sampling frequency
+        n: 256,      // Number of samples
+        window: 'rectangular', // hanning, hamming, flattop, rectangular
+        noise: 0.02  // Base noise level
+    };
+
+    // Filter band state
+    let filterBand = {
+        active: false,
+        fStart: 0,
+        fEnd: 250
+    };
+
+    // 3D Projection state
+    let view3D = {
+        yaw: PI / 6, // angle around Y-axis
+        pitch: -PI / 8, // angle around X-axis
+        targetYaw: PI / 6,
+        targetPitch: -PI / 8,
+        tweenProgress: 1.0,
+        isDragging: false,
+        lastMouseX: 0,
+        lastMouseY: 0
+    };
+
+    // Animation frames and dynamic offsets
+    let timeOffset = 0;
+
+    // DOM Elements
+    const canvas3D = document.getElementById('canvas3D');
+    const canvasTime = document.getElementById('canvasTime');
+    const canvasFreq = document.getElementById('canvasFreq');
+
+    const ctx3D = canvas3D.getContext('2d');
+    const ctxTime = canvasTime.getContext('2d');
+    const ctxFreq = canvasFreq.getContext('2d');
+
+    // Init UI Elements
+    const inputF1 = document.getElementById('input-f1');
+    const inputA1 = document.getElementById('input-a1');
+    const inputF2 = document.getElementById('input-f2');
+    const inputA2 = document.getElementById('input-a2');
+    const inputF3 = document.getElementById('input-f3');
+    const inputA3 = document.getElementById('input-a3');
+
+    const selectFs = document.getElementById('select-fs');
+    const selectN = document.getElementById('select-n');
+    const selectWindow = document.getElementById('select-window');
+
+    // UI labels
+    const lblF1 = document.getElementById('lbl-f1');
+    const lblA1 = document.getElementById('lbl-a1');
+    const lblF2 = document.getElementById('lbl-f2');
+    const lblA2 = document.getElementById('lbl-a2');
+    const lblF3 = document.getElementById('lbl-f3');
+    const lblA3 = document.getElementById('lbl-a3');
+
+    const valNyquist = document.getElementById('val-nyquist');
+    const valResolution = document.getElementById('val-resolution');
+    const valTime = document.getElementById('val-time');
+    const filterBadge = document.getElementById('filter-badge');
+
+    // Set canvas sizes for high-DPI displays
+    function initCanvasResolution() {
+        const dpr = window.devicePixelRatio || 1;
+        const list = [
+            { canvas: canvas3D, ctx: ctx3D },
+            { canvas: canvasTime, ctx: ctxTime },
+            { canvas: canvasFreq, ctx: ctxFreq }
+        ];
+
+        list.forEach(item => {
+            const rect = item.canvas.getBoundingClientRect();
+            item.canvas.width = rect.width * dpr;
+            item.canvas.height = rect.height * dpr;
+            item.ctx.resetTransform();
+            item.ctx.scale(dpr, dpr);
+        });
+    }
+
+    window.addEventListener('resize', initCanvasResolution);
+
+    // Cooley-Tukey In-Place FFT / IFFT algorithm
+    function fft_in_place(re, im, invert = false) {
+        const n = re.length;
+        if ((n & (n - 1)) !== 0) return; // Must be power of 2
+        
+        // Bit-reversal permutation
+        for (let i = 0; i < n; i++) {
+            let j = 0;
+            for (let k = 1; k < n; k <<= 1) {
+                if ((i & k) !== 0) j |= (n / 2) / k;
+            }
+            if (i < j) {
+                let temp = re[i]; re[i] = re[j]; re[j] = temp;
+                temp = im[i]; im[i] = im[j]; im[j] = temp;
+            }
+        }
+        
+        // Cooley-Tukey decimation-in-time
+        for (let len = 2; len <= n; len <<= 1) {
+            let angle = 2 * Math.PI / len * (invert ? 1 : -1);
+            let wlen_re = Math.cos(angle);
+            let wlen_im = Math.sin(angle);
+            for (let i = 0; i < n; i += len) {
+                let w_re = 1;
+                let w_im = 0;
+                for (let j = 0; j < len / 2; j++) {
+                    let u_re = re[i + j];
+                    let u_im = im[i + j];
+                    let v_re = re[i + j + len / 2] * w_re - im[i + j + len / 2] * w_im;
+                    let v_im = re[i + j + len / 2] * w_im + im[i + j + len / 2] * w_re;
+                    
+                    re[i + j] = u_re + v_re;
+                    im[i + j] = u_im + v_im;
+                    re[i + j + len / 2] = u_re - v_re;
+                    im[i + j + len / 2] = u_im - v_im;
+                    
+                    let next_w_re = w_re * wlen_re - w_im * wlen_im;
+                    w_im = w_re * wlen_im + w_im * wlen_re;
+                    w_re = next_w_re;
+                }
+            }
+        }
+        
+        if (invert) {
+            for (let i = 0; i < n; i++) {
+                re[i] /= n;
+                im[i] /= n;
+            }
+        }
+    }
+
+    // Window Functions
+    function applyWindow(val, idx, N, type) {
+        if (type === 'rectangular') return val;
+        if (type === 'hanning') {
+            let w = 0.5 * (1 - Math.cos(2 * PI * idx / (N - 1)));
+            return val * w;
+        }
+        if (type === 'hamming') {
+            let w = 0.54 - 0.46 * Math.cos(2 * PI * idx / (N - 1));
+            return val * w;
+        }
+        if (type === 'flattop') {
+            let w = 0.2155789 - 0.4166315 * Math.cos(2 * PI * idx / (N - 1)) 
+                    + 0.2772631 * Math.cos(4 * PI * idx / (N - 1)) 
+                    - 0.0835789 * Math.cos(6 * PI * idx / (N - 1)) 
+                    + 0.0069474 * Math.cos(8 * PI * idx / (N - 1));
+            return val * w;
+        }
+        return val;
+    }
+
+    // Coherent window factor scale adjustment to correct peak amplitude loss
+    function getWindowScaleFactor(type) {
+        if (type === 'rectangular') return 1.0;
+        if (type === 'hanning') return 2.0;
+        if (type === 'hamming') return 1.85;
+        if (type === 'flattop') return 4.18;
+        return 1.0;
+    }
+
+    // Preset configurations loading
+    function loadPreset(presetName) {
+        // Remove active class from all buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-p-${presetName}`).classList.add('active');
+
+        // Hide all details text cards
+        document.querySelectorAll('.fault-desc-card').forEach(card => card.classList.remove('active'));
+        document.getElementById(`desc-${presetName}`).classList.add('active');
+
+        // Reset filter
+        clearFilter();
+
+        if (presetName === 'custom') {
+            return; // keep current state
+        }
+
+        switch (presetName) {
+            case 'normal':
+                signals.s1 = { f: 30, a: 0.15 };
+                signals.s2 = { f: 60, a: 0.04 };
+                signals.s3 = { f: 162, a: 0.0 };
+                fftParams.noise = 0.02;
+                break;
+            case 'unbalance':
+                signals.s1 = { f: 30, a: 2.2 };
+                signals.s2 = { f: 60, a: 0.08 };
+                signals.s3 = { f: 162, a: 0.0 };
+                fftParams.noise = 0.06;
+                break;
+            case 'misalignment':
+                signals.s1 = { f: 30, a: 1.0 };
+                signals.s2 = { f: 60, a: 1.8 };
+                signals.s3 = { f: 162, a: 0.0 };
+                fftParams.noise = 0.05;
+                break;
+            case 'looseness':
+                signals.s1 = { f: 30, a: 1.8 };
+                signals.s2 = { f: 60, a: 1.2 };
+                signals.s3 = { f: 90, a: 0.8 }; // 3X harmonic
+                // Let's add custom harmonics in rendering
+                fftParams.noise = 0.08;
+                break;
+            case 'bearing':
+                signals.s1 = { f: 30, a: 0.3 };
+                signals.s2 = { f: 60, a: 0.1 };
+                signals.s3 = { f: 162, a: 1.5 }; // BPFI
+                fftParams.noise = 0.15;
+                break;
+            case 'gear':
+                signals.s1 = { f: 30, a: 0.4 };
+                signals.s2 = { f: 240, a: 1.6 }; // GMF
+                signals.s3 = { f: 210, a: 0.5 }; // Sideband GMF-1X
+                fftParams.noise = 0.04;
+                break;
+        }
+
+        // Apply signals values to input elements
+        inputF1.value = signals.s1.f;
+        inputA1.value = signals.s1.a * 10;
+        inputF2.value = signals.s2.f;
+        inputA2.value = signals.s2.a * 10;
+        inputF3.value = signals.s3.f;
+        inputA3.value = signals.s3.a * 10;
+
+        updateLabels();
+    }
+
+    function onSignalChange() {
+        signals.s1.f = parseInt(inputF1.value);
+        signals.s1.a = parseFloat(inputA1.value) / 10;
+        signals.s2.f = parseInt(inputF2.value);
+        signals.s2.a = parseFloat(inputA2.value) / 10;
+        signals.s3.f = parseInt(inputF3.value);
+        signals.s3.a = parseFloat(inputA3.value) / 10;
+
+        // Reset preset highlights to custom
+        document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn-p-custom').classList.add('active');
+        document.querySelectorAll('.fault-desc-card').forEach(card => card.classList.remove('active'));
+        document.getElementById('desc-custom').classList.add('active');
+
+        updateLabels();
+    }
+
+    function updateLabels() {
+        lblF1.innerText = `${signals.s1.f} Hz`;
+        lblA1.innerText = `${signals.s1.a.toFixed(1)} g`;
+        lblF2.innerText = `${signals.s2.f} Hz`;
+        lblA2.innerText = `${signals.s2.a.toFixed(1)} g`;
+        lblF3.innerText = `${signals.s3.f} Hz`;
+        lblA3.innerText = `${signals.s3.a.toFixed(1)} g`;
+    }
+
+    function onFftParamChange() {
+        fftParams.fs = parseInt(selectFs.value);
+        fftParams.n = parseInt(selectN.value);
+        fftParams.window = selectWindow.value;
+
+        // Recalculate calculations box values
+        const nyquist = fftParams.fs / 2;
+        const resolution = fftParams.fs / fftParams.n;
+        const timeSec = fftParams.n / fftParams.fs;
+
+        valNyquist.innerText = `${nyquist} Hz`;
+        valResolution.innerText = `${resolution.toFixed(2)} Hz`;
+        valTime.innerText = `${timeSec.toFixed(2)} giây (${Math.round(timeSec * 1000)} ms)`;
+
+        // Reset filter if limit exceeds Nyquist
+        if (filterBand.fEnd > nyquist) {
+            clearFilter();
+        }
+    }
+
+    // Interactive Filter logic on Freq Canvas
+    let isFiltering = false;
+
+    canvasFreq.addEventListener('mousedown', (e) => {
+        const rect = canvasFreq.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        
+        // Map X to Hz
+        const width = rect.width;
+        const nyquist = fftParams.fs / 2;
+        const hz = (mouseX / width) * nyquist;
+        
+        filterBand.active = true;
+        filterBand.fStart = hz;
+        filterBand.fEnd = hz;
+        isFiltering = true;
+    });
+
+    canvasFreq.addEventListener('mousemove', (e) => {
+        if (!isFiltering) return;
+        const rect = canvasFreq.getBoundingClientRect();
+        const mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+        const nyquist = fftParams.fs / 2;
+        const hz = (mouseX / rect.width) * nyquist;
+        
+        filterBand.fEnd = hz;
+        updateFilterBadge();
+    });
+
+    canvasFreq.addEventListener('mouseup', () => {
+        if (!isFiltering) return;
+        isFiltering = false;
+        
+        // Ensure start is smaller than end
+        if (filterBand.fStart > filterBand.fEnd) {
+            let temp = filterBand.fStart;
+            filterBand.fStart = filterBand.fEnd;
+            filterBand.fEnd = temp;
+        }
+
+        // If selection is tiny, clear filter
+        if (Math.abs(filterBand.fEnd - filterBand.fStart) < 1.0) {
+            clearFilter();
+        }
+    });
+
+    function clearFilter() {
+        filterBand.active = false;
+        filterBand.fStart = 0;
+        filterBand.fEnd = fftParams.fs / 2;
+        filterBadge.classList.remove('active');
+    }
+
+    function updateFilterBadge() {
+        filterBadge.classList.add('active');
+        let f1 = Math.round(Math.min(filterBand.fStart, filterBand.fEnd));
+        let f2 = Math.round(Math.max(filterBand.fStart, filterBand.fEnd));
+        filterBadge.innerText = `Bộ lọc thông dải: ${f1} - ${f2} Hz`;
+    }
+
+    // Drag to Rotate 3D View
+    canvas3D.addEventListener('mousedown', (e) => {
+        view3D.isDragging = true;
+        view3D.lastMouseX = e.clientX;
+        view3D.lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!view3D.isDragging) return;
+        const dx = e.clientX - view3D.lastMouseX;
+        const dy = e.clientY - view3D.lastMouseY;
+        
+        view3D.yaw += dx * 0.007;
+        view3D.pitch += dy * 0.007;
+
+        // Constraint pitch rotation to avoid gimbal lock
+        view3D.pitch = Math.max(-PI / 2.2, Math.min(PI / 2.2, view3D.pitch));
+        
+        view3D.targetYaw = view3D.yaw;
+        view3D.targetPitch = view3D.pitch;
+
+        view3D.lastMouseX = e.clientX;
+        view3D.lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => {
+        view3D.isDragging = false;
+    });
+
+    // Tween view rotation helper
+    function tween3DView(targetYaw, targetPitch) {
+        view3D.targetYaw = targetYaw;
+        view3D.targetPitch = targetPitch;
+        view3D.tweenProgress = 0.0;
+        
+        // Remove active class from rot buttons
+        document.querySelectorAll('.canvas-actions .action-btn').forEach(btn => btn.classList.remove('active'));
+    }
+
+    // 3D Point Projection to 2D Screen Coordinate
+    function project3D(x, y, z, width, height) {
+        // Center of canvas
+        const cx = width / 2;
+        const cy = height / 2;
+
+        // Yaw (rotation around Y-axis)
+        let cosY = Math.cos(view3D.yaw);
+        let sinY = Math.sin(view3D.yaw);
+        let x1 = x * cosY - z * sinY;
+        let z1 = x * sinY + z * cosY;
+
+        // Pitch (rotation around X-axis)
+        let cosX = Math.cos(view3D.pitch);
+        let sinX = Math.sin(view3D.pitch);
+        let y2 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+
+        // Scale factors
+        const scale = Math.min(width, height) * 0.45;
+        
+        // Perspective factor
+        const distance = 3.5;
+        const perspective = distance / (distance + z2);
+
+        return {
+            x: cx + x1 * scale * perspective,
+            y: cy - y2 * scale * perspective,
+            depth: z2
+        };
+    }
+
+    // ── MAIN DRAW LOOP ──
+    function draw() {
+        // --- 1. HANDLE 3D TWEENING ANIMATION ---
+        if (view3D.tweenProgress < 1.0) {
+            view3D.tweenProgress += 0.03; // speed of transition
+            if (view3D.tweenProgress > 1.0) view3D.tweenProgress = 1.0;
+            
+            // LERP formula
+            view3D.yaw = view3D.yaw + (view3D.targetYaw - view3D.yaw) * 0.15;
+            view3D.pitch = view3D.pitch + (view3D.targetPitch - view3D.pitch) * 0.15;
+        }
+
+        // Highlight active view preset button if values match
+        const tolerance = 0.05;
+        if (Math.abs(view3D.yaw - PI/2) < tolerance && Math.abs(view3D.pitch) < tolerance) {
+            document.getElementById('btn-rot-time').classList.add('active');
+        } else if (Math.abs(view3D.yaw) < tolerance && Math.abs(view3D.pitch) < tolerance) {
+            document.getElementById('btn-rot-freq').classList.add('active');
+        } else if (Math.abs(view3D.yaw - PI/6) < tolerance && Math.abs(view3D.pitch - (-PI/8)) < tolerance) {
+            document.getElementById('btn-rot-iso').classList.add('active');
+        }
+
+        const width3D = canvas3D.clientWidth;
+        const height3D = canvas3D.clientHeight;
+        const widthTime = canvasTime.clientWidth;
+        const heightTime = canvasTime.clientHeight;
+        const widthFreq = canvasFreq.clientWidth;
+        const heightFreq = canvasFreq.clientHeight;
+
+        ctx3D.clearRect(0, 0, width3D, height3D);
+        ctxTime.clearRect(0, 0, widthTime, heightTime);
+        ctxFreq.clearRect(0, 0, widthFreq, heightFreq);
+
+        // Signal composition params
+        const noiseLvl = fftParams.noise;
+        
+        // Define Active Preset name for extra harmonic logic
+        let activePreset = 'custom';
+        const activePresetBtn = document.querySelector('.presets-wrapper .preset-btn.active');
+        if (activePresetBtn) {
+            activePreset = activePresetBtn.id.replace('btn-p-', '');
+        }
+
+        // Helper: Generate signal value at time t
+        function generateSignalVal(t, withNoise = true) {
+            let y = 0;
+            // Wave 1
+            y += signals.s1.a * Math.sin(2 * PI * signals.s1.f * t);
+            // Wave 2
+            y += signals.s2.a * Math.sin(2 * PI * signals.s2.f * t);
+            // Wave 3
+            y += signals.s3.a * Math.sin(2 * PI * signals.s3.f * t);
+
+            // Extra mechanical looseness harmonics simulation
+            if (activePreset === 'looseness') {
+                // Add integer harmonics (4X: 120Hz, 5X: 150Hz, 6X: 180Hz, 7X: 210Hz)
+                y += 0.5 * Math.sin(2 * PI * 120 * t);
+                y += 0.3 * Math.sin(2 * PI * 150 * t);
+                y += 0.2 * Math.sin(2 * PI * 180 * t);
+                y += 0.1 * Math.sin(2 * PI * 210 * t);
+            }
+
+            // Extra bearing BPFI sidebands simulation
+            if (activePreset === 'bearing') {
+                // Main BPFI is 162Hz. Amplitude is modulated by 1X (30Hz) rotation speed.
+                // Modulated Signal: cos(2*pi*fc*t) * (1 + m*cos(2*pi*fm*t))
+                // fc = 162Hz, fm = 30Hz. This expands to fc, fc-fm (132Hz), fc+fm (192Hz)
+                let modulation = 1.0 + 0.6 * Math.sin(2 * PI * 30 * t);
+                y = y - signals.s3.a * Math.sin(2 * PI * 162 * t) + signals.s3.a * Math.sin(2 * PI * 162 * t) * modulation;
+            }
+
+            // Extra gear mesh modulation simulation
+            if (activePreset === 'gear') {
+                // fc = 240Hz, fm = 30Hz
+                let modulation = 1.0 + 0.5 * Math.sin(2 * PI * 30 * t);
+                y = y - signals.s2.a * Math.sin(2 * PI * 240 * t) + signals.s2.a * Math.sin(2 * PI * 240 * t) * modulation;
+            }
+
+            if (withNoise) {
+                // Add simulated high-frequency noise floor
+                y += noiseLvl * (Math.sin(620 * t) + Math.cos(1410 * t) * 1.5 + Math.sin(2300 * t + 2));
+            }
+            return y;
+        }
+
+        // ----------------------------------------------------
+        // --- DRAW 2D TIME DOMAIN (CONTINUOUS SIGNAL) ---
+        // ----------------------------------------------------
+        ctxTime.strokeStyle = '#223047';
+        ctxTime.lineWidth = 1;
+        ctxTime.beginPath();
+        ctxTime.moveTo(0, heightTime / 2);
+        ctxTime.lineTo(widthTime, heightTime / 2);
+        ctxTime.stroke();
+
+        ctxTime.strokeStyle = varColor('composite');
+        ctxTime.lineWidth = 1.8;
+        ctxTime.beginPath();
+
+        const timeSpan = 0.1; // Display 100 ms of data
+        for (let xPixel = 0; xPixel < widthTime; xPixel++) {
+            const t = (xPixel / widthTime) * timeSpan + timeOffset;
+            const yVal = generateSignalVal(t, true);
+            const canvasY = (heightTime / 2) - yVal * (heightTime / 10);
+            
+            if (xPixel === 0) ctxTime.moveTo(xPixel, canvasY);
+            else ctxTime.lineTo(xPixel, canvasY);
+        }
+        ctxTime.stroke();
+
+        // ----------------------------------------------------
+        // --- COMPUTE AND DRAW REAL FFT (FREQUENCY SPECTRUM) ---
+        // ----------------------------------------------------
+        const N = fftParams.n;
+        const Fs = fftParams.fs;
+        const nyquist = Fs / 2;
+
+        // Generate N discrete samples
+        let sampleRe = new Float64Array(N);
+        let sampleIm = new Float64Array(N);
+        const Ts = 1 / Fs; // Sampling period
+
+        for (let i = 0; i < N; i++) {
+            const t = i * Ts;
+            // Generate raw signal with noise
+            let y = generateSignalVal(t, true);
+            
+            // Apply Windowing Function
+            sampleRe[i] = applyWindow(y, i, N, fftParams.window);
+            sampleIm[i] = 0.0;
+        }
+
+        // Execute In-place FFT calculation
+        fft_in_place(sampleRe, sampleIm, false);
+
+        // Extract amplitude spectrum
+        let fftAmplitudes = new Float64Array(N / 2);
+        const winScale = getWindowScaleFactor(fftParams.window);
+
+        for (let i = 0; i < N / 2; i++) {
+            // Complex amplitude magnitude = sqrt(re^2 + im^2)
+            // Scaling factor: for positive frequencies, divide by N/2
+            let mag = Math.sqrt(sampleRe[i]*sampleRe[i] + sampleIm[i]*sampleIm[i]) / (N / 2);
+            
+            // Apply correction factor for window amplitude loss
+            fftAmplitudes[i] = mag * winScale;
+        }
+
+        // Draw frequency axis grid and labels
+        ctxFreq.strokeStyle = '#182030';
+        ctxFreq.lineWidth = 1;
+        ctxFreq.font = '9px Inter';
+        ctxFreq.fillStyle = '#64748b';
+
+        const stepHz = nyquist > 200 ? 50 : 25;
+        for (let hz = stepHz; hz < nyquist; hz += stepHz) {
+            const xPixel = (hz / nyquist) * widthFreq;
+            ctxFreq.beginPath();
+            ctxFreq.moveTo(xPixel, 0);
+            ctxFreq.lineTo(xPixel, heightFreq - 20);
+            ctxFreq.stroke();
+            ctxFreq.fillText(`${hz}Hz`, xPixel - 12, heightFreq - 6);
+        }
+
+        // Draw FFT spectrum plot lines
+        ctxFreq.strokeStyle = '#1e293b';
+        ctxFreq.lineWidth = 1.5;
+        ctxFreq.beginPath();
+        
+        for (let i = 0; i < N / 2; i++) {
+            const hz = (i / N) * Fs;
+            const xPixel = (hz / nyquist) * widthFreq;
+            const amp = fftAmplitudes[i];
+            const yPixel = heightFreq - 22 - amp * (heightFreq - 40) / 2.8;
+
+            if (i === 0) ctxFreq.moveTo(xPixel, yPixel);
+            else ctxFreq.lineTo(xPixel, yPixel);
+        }
+        ctxFreq.stroke();
+
+        // Fill area under spectrum
+        ctxFreq.fillStyle = 'rgba(45, 212, 191, 0.04)';
+        ctxFreq.beginPath();
+        ctxFreq.moveTo(0, heightFreq - 22);
+        for (let i = 0; i < N / 2; i++) {
+            const hz = (i / N) * Fs;
+            const xPixel = (hz / nyquist) * widthFreq;
+            const amp = fftAmplitudes[i];
+            const yPixel = heightFreq - 22 - amp * (heightFreq - 40) / 2.8;
+            ctxFreq.lineTo(xPixel, yPixel);
+        }
+        ctxFreq.lineTo(widthFreq, heightFreq - 22);
+        ctxFreq.closePath();
+        ctxFreq.fill();
+
+        // Draw individual peak markers (high-light peaks)
+        for (let i = 0; i < N / 2; i++) {
+            const hz = (i / N) * Fs;
+            const amp = fftAmplitudes[i];
+            
+            // Peak threshold
+            if (amp > 0.08) {
+                // Find local maximum in neighbors to get precise peak marker
+                let isLocalMax = true;
+                if (i > 0 && fftAmplitudes[i-1] > amp) isLocalMax = false;
+                if (i < N/2 - 1 && fftAmplitudes[i+1] > amp) isLocalMax = false;
+
+                if (isLocalMax) {
+                    const xPixel = (hz / nyquist) * widthFreq;
+                    const yPixel = heightFreq - 22 - amp * (heightFreq - 40) / 2.8;
+
+                    // Draw dot
+                    ctxFreq.fillStyle = varColor('s1');
+                    ctxFreq.beginPath();
+                    ctxFreq.arc(xPixel, yPixel, 3.5, 0, 2 * PI);
+                    ctxFreq.fill();
+
+                    // Text label
+                    ctxFreq.fillStyle = '#ffffff';
+                    ctxFreq.font = 'bold 9px Inter';
+                    ctxFreq.fillText(`${hz.toFixed(1)}Hz (${amp.toFixed(2)}g)`, xPixel - 15, yPixel - 7);
+                }
+            }
+        }
+
+        // Draw filter band shaded overlay if active
+        if (filterBand.active) {
+            const x1 = (Math.min(filterBand.fStart, filterBand.fEnd) / nyquist) * widthFreq;
+            const x2 = (Math.max(filterBand.fStart, filterBand.fEnd) / nyquist) * widthFreq;
+            
+            ctxFreq.fillStyle = 'rgba(251, 191, 36, 0.15)';
+            ctxFreq.fillRect(x1, 0, x2 - x1, heightFreq - 20);
+
+            ctxFreq.strokeStyle = varColor('filtered');
+            ctxFreq.lineWidth = 1;
+            ctxFreq.beginPath();
+            ctxFreq.moveTo(x1, 0); ctxFreq.lineTo(x1, heightFreq - 20);
+            ctxFreq.moveTo(x2, 0); ctxFreq.lineTo(x2, heightFreq - 20);
+            ctxFreq.stroke();
+        }
+
+        // ----------------------------------------------------
+        // --- FOURIER FILTERING & INVERSE FFT (IFFT) ---
+        // ----------------------------------------------------
+        if (filterBand.active) {
+            // Create a copy of the FFT coefficients
+            let filteredRe = new Float64Array(N);
+            let filteredIm = new Float64Array(N);
+            
+            // Map frequencies and apply filter bandpass (brick-wall filter)
+            const fMin = Math.min(filterBand.fStart, filterBand.fEnd);
+            const fMax = Math.max(filterBand.fStart, filterBand.fEnd);
+
+            for (let i = 0; i < N; i++) {
+                // Symmetric frequency index mapping
+                const hz = i < N/2 ? (i / N) * Fs : ((N - i) / N) * Fs;
+                
+                if (hz >= fMin && hz <= fMax) {
+                    filteredRe[i] = sampleRe[i];
+                    filteredIm[i] = sampleIm[i];
+                } else {
+                    filteredRe[i] = 0.0;
+                    filteredIm[i] = 0.0;
+                }
+            }
+
+            // Run IFFT on filtered spectrum
+            fft_in_place(filteredRe, filteredIm, true);
+
+            // Reconstruct time domain window scale loss for IFFT signal
+            // (Note: since we windowed the signal before FFT, the IFFT output will be tapered. 
+            // We divide by the window to reconstruct if it is not close to zero, or just redraw)
+            
+            // Draw filtered time signal overlay on Time Domain Canvas
+            ctxTime.strokeStyle = varColor('filtered');
+            ctxTime.lineWidth = 1.8;
+            ctxTime.beginPath();
+
+            // Draw filtered waveform
+            for (let i = 0; i < N; i++) {
+                const t = i * Ts;
+                const hz = (i / N) * Fs;
+                const xPixel = (i / N) * widthTime;
+                
+                let yVal = filteredRe[i];
+                
+                // Remove window tapering effect to make reconstruction visual clean
+                let wVal = applyWindow(1.0, i, N, fftParams.window);
+                if (wVal > 0.15) {
+                    yVal = yVal / wVal;
+                }
+
+                const canvasY = (heightTime / 2) - yVal * (heightTime / 10);
+                
+                if (i === 0) ctxTime.moveTo(xPixel, canvasY);
+                else ctxTime.lineTo(xPixel, canvasY);
+            }
+            ctxTime.stroke();
+        }
+
+        // ----------------------------------------------------
+        // --- DRAW 3D FOURIER CAROUSEL (假 3D CANVAS) ---
+        // ----------------------------------------------------
+        // We draw:
+        // Axis lines
+        // individual sine waves (s1, s2, s3)
+        // Composite wave at the front
+        // Spectral peaks projected at the back
+
+        // 3D Box bounding coordinates
+        const axisMinX = -1.2, axisMaxX = 1.2; // Time axis
+        const axisMinY = -1.8, axisMaxY = 1.8; // Amplitude axis
+        const axisMinZ = -1.0, axisMaxZ = 1.0; // Frequency axis (z-axis)
+
+        // Draw 3D Grid Axis
+        ctx3D.strokeStyle = '#223047';
+        ctx3D.lineWidth = 1.5;
+
+        // Draw Z-axis (Frequency axis, depth direction)
+        ctx3D.beginPath();
+        let pZStart = project3D(axisMinX, axisMinY, axisMinZ, width3D, height3D);
+        let pZEnd = project3D(axisMinX, axisMinY, axisMaxZ, width3D, height3D);
+        ctx3D.moveTo(pZStart.x, pZStart.y);
+        ctx3D.lineTo(pZEnd.x, pZEnd.y);
+        ctx3D.stroke();
+
+        // Draw X-axis (Time axis, horizontal direction at back z=min)
+        ctx3D.beginPath();
+        let pXStart = project3D(axisMinX, axisMinY, axisMinZ, width3D, height3D);
+        let pXEnd = project3D(axisMaxX, axisMinY, axisMinZ, width3D, height3D);
+        ctx3D.moveTo(pXStart.x, pXStart.y);
+        ctx3D.lineTo(pXEnd.x, pXEnd.y);
+        ctx3D.stroke();
+
+        // Axis helper labels in 3D Space
+        ctx3D.fillStyle = '#64748b';
+        ctx3D.font = '10px Inter';
+        
+        let pLabelT = project3D(axisMaxX + 0.15, axisMinY, axisMinZ, width3D, height3D);
+        ctx3D.fillText("Thời gian (t)", pLabelT.x - 20, pLabelT.y);
+
+        let pLabelF = project3D(axisMinX, axisMinY, axisMaxZ + 0.25, width3D, height3D);
+        ctx3D.fillText("Tần số (f)", pLabelF.x - 10, pLabelF.y + 12);
+
+        // We draw individual waves at different Z (frequency) coordinates
+        // Let's place wave 1 at z = -0.5, wave 2 at z = 0.0, wave 3 at z = 0.5
+        const zCoords = [-0.5, 0.1, 0.7];
+        const activeWaves = [
+            { config: signals.s1, color: varColor('s1'), z: zCoords[0], name: 'y₁ (' + signals.s1.f + 'Hz)' },
+            { config: signals.s2, color: varColor('s2'), z: zCoords[1], name: 'y₂ (' + signals.s2.f + 'Hz)' },
+            { config: signals.s3, color: varColor('s3'), z: zCoords[2], name: 'y₃ (' + signals.s3.f + 'Hz)' }
+        ];
+
+        // 1. Draw helper grids inside the 3D box (grid lines at frequency channels)
+        activeWaves.forEach(w => {
+            if (w.config.a <= 0.05) return;
+            ctx3D.strokeStyle = 'rgba(34, 48, 71, 0.4)';
+            ctx3D.lineWidth = 1;
+            ctx3D.beginPath();
+            let startLine = project3D(axisMinX, axisMinY, w.z, width3D, height3D);
+            let endLine = project3D(axisMaxX, axisMinY, w.z, width3D, height3D);
+            ctx3D.moveTo(startLine.x, startLine.y);
+            ctx3D.lineTo(endLine.x, endLine.y);
+            ctx3D.stroke();
+        });
+
+        // 2. Draw the component sine waves in 3D Space
+        activeWaves.forEach(w => {
+            if (w.config.a <= 0.05) return;
+            ctx3D.strokeStyle = w.color;
+            ctx3D.lineWidth = 2.0;
+            ctx3D.beginPath();
+
+            const pts = 120;
+            for (let i = 0; i <= pts; i++) {
+                // Map i/pts from axisMinX to axisMaxX
+                const xVal = axisMinX + (i / pts) * (axisMaxX - axisMinX);
+                // Map xVal to time t
+                const t = (i / pts) * 0.06; // 60 ms signal preview
+                
+                // Sine equation for component
+                let yVal = w.config.a * Math.sin(2 * PI * w.config.f * t);
+                
+                // In loose/modulated preset mode, simulate those exact waves on 3D curves
+                if (activePreset === 'bearing' && w.config.f === 162) {
+                    let modulation = 1.0 + 0.6 * Math.sin(2 * PI * 30 * t);
+                    yVal = yVal * modulation;
+                }
+                if (activePreset === 'gear' && w.config.f === 240) {
+                    let modulation = 1.0 + 0.5 * Math.sin(2 * PI * 30 * t);
+                    yVal = yVal * modulation;
+                }
+
+                // Scale Amplitude to fit 3D box
+                let yCoord = yVal * 0.5;
+
+                const p2d = project3D(xVal, yCoord, w.z, width3D, height3D);
+                if (i === 0) ctx3D.moveTo(p2d.x, p2d.y);
+                else ctx3D.lineTo(p2d.x, p2d.y);
+            }
+            ctx3D.stroke();
+
+            // Label for components in 3D
+            let pLabel = project3D(axisMaxX + 0.05, 0, w.z, width3D, height3D);
+            ctx3D.fillStyle = w.color;
+            ctx3D.font = '10px Inter';
+            ctx3D.fillText(w.name, pLabel.x, pLabel.y);
+        });
+
+        // 3. Draw composite wave at the very front (z = -1.0)
+        ctx3D.strokeStyle = varColor('composite');
+        ctx3D.lineWidth = 2.5;
+        ctx3D.beginPath();
+        const ptsComp = 180;
+        const frontZ = -0.9;
+
+        for (let i = 0; i <= ptsComp; i++) {
+            const xVal = axisMinX + (i / ptsComp) * (axisMaxX - axisMinX);
+            const t = (i / ptsComp) * 0.06 + timeOffset; // dynamic scrolling
+            
+            // Composite signal
+            let yVal = generateSignalVal(t, false); // no noise for visual clarity in 3D
+            let yCoord = yVal * 0.4;
+
+            const p2d = project3D(xVal, yCoord, frontZ, width3D, height3D);
+            if (i === 0) ctx3D.moveTo(p2d.x, p2d.y);
+            else ctx3D.lineTo(p2d.x, p2d.y);
+        }
+        ctx3D.stroke();
+
+        let pLabelComp = project3D(axisMaxX + 0.05, 0, frontZ, width3D, height3D);
+        ctx3D.fillStyle = varColor('composite');
+        ctx3D.font = 'bold 11px Inter';
+        ctx3D.fillText("Tín hiệu y(t) tổng hợp", pLabelComp.x, pLabelComp.y);
+
+        // 4. Draw Fourier Spectrum Peaks at the back wall (z = -1.0, projecting as spikes)
+        // Draw back wall axis frame
+        ctx3D.strokeStyle = 'rgba(34, 48, 71, 0.3)';
+        ctx3D.lineWidth = 1;
+        ctx3D.beginPath();
+        let pBackFrameBottomLeft = project3D(axisMinX, axisMinY, -1.0, width3D, height3D);
+        let pBackFrameBottomRight = project3D(axisMaxX, axisMinY, -1.0, width3D, height3D);
+        let pBackFrameTopLeft = project3D(axisMinX, axisMaxY, -1.0, width3D, height3D);
+        ctx3D.moveTo(pBackFrameTopLeft.x, pBackFrameTopLeft.y);
+        ctx3D.lineTo(pBackFrameBottomLeft.x, pBackFrameBottomLeft.y);
+        ctx3D.lineTo(pBackFrameBottomRight.x, pBackFrameBottomRight.y);
+        ctx3D.stroke();
+
+        // Project spikes from back axes
+        activeWaves.forEach(w => {
+            if (w.config.a <= 0.05) return;
+            
+            // Bottom position of spike on frequency axis at back
+            let pSpikeBottom = project3D(axisMinX, axisMinY, w.z, width3D, height3D);
+            // Top position representing the amplitude of this frequency
+            let spikeAmpY = axisMinY + w.config.a * 0.8;
+            let pSpikeTop = project3D(axisMinX, spikeAmpY, w.z, width3D, height3D);
+
+            ctx3D.strokeStyle = w.color;
+            ctx3D.lineWidth = 3;
+            ctx3D.beginPath();
+            ctx3D.moveTo(pSpikeBottom.x, pSpikeBottom.y);
+            ctx3D.lineTo(pSpikeTop.x, pSpikeTop.y);
+            ctx3D.stroke();
+
+            // Connecting line representing how the wave maps to this peak
+            ctx3D.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx3D.lineWidth = 1;
+            ctx3D.setLineDash([3, 3]);
+            ctx3D.beginPath();
+            
+            // Connect wave peak (at time 0) to spectral spike top
+            let pWavePeak = project3D(0, w.config.a * 0.5, w.z, width3D, height3D);
+            ctx3D.moveTo(pWavePeak.x, pWavePeak.y);
+            ctx3D.lineTo(pSpikeTop.x, pSpikeTop.y);
+            ctx3D.stroke();
+            ctx3D.setLineDash([]); // Reset
+        });
+
+        // Slow scroll time offset for time waveforms
+        timeOffset += 0.0003;
+
+        // Loop animation frame
+        requestAnimationFrame(draw);
+    }
+
+    // Colors mapping helper matching CSS variables
+    function varColor(name) {
+        const root = document.documentElement;
+        if (name === 's1') return '#2dd4bf';
+        if (name === 's2') return '#38bdf8';
+        if (name === 's3') return '#ec4899';
+        if (name === 'composite') return '#c084fc';
+        if (name === 'filtered') return '#fbbf24';
+        return '#ffffff';
+    }
+
+    // Initialize resolution, configure presets on load and trigger loops
+    initCanvasResolution();
+    onFftParamChange();
+    loadPreset('normal');
+    draw();
+</script>
+
+</body>
+</html>

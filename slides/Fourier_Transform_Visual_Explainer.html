@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trực Quan Hóa Biến Đổi Fourier (FFT) Trong Chẩn Đoán Độ Rung</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090d16;
+            --panel: #111827;
+            --panel-light: #1f2937;
+            --ink: #eaf0f7;
+            --muted: #9fb3c8;
+            --accent: #2dd4bf; /* Teal */
+            --accent2: #38bdf8; /* Sky */
+            --accent3: #ec4899; /* Pink */
+            --border: #223047;
+            --hust-red: #d4232a;
+            --good: #10b981;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--ink);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(135deg, #fff 30%, var(--accent2) 70%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--muted);
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .back-badge {
+            display: inline-block;
+            background: rgba(212, 35, 42, 0.15);
+            border: 1px solid var(--hust-red);
+            color: #fff;
+            padding: 0.3rem 1rem;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* ── SECTION 1: THE INTUITION ── */
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            border-left: 5px solid var(--accent);
+            padding-left: 0.8rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background-color: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 10px 20px rgba(45, 212, 191, 0.05);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.8rem;
+            color: var(--accent2);
+        }
+
+        .card p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            text-align: justify;
+        }
+
+        /* ── SECTION 2: INTERACTIVE WAVE MIXER ── */
+        .mixer-box {
+            background-color: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .mixer-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 900px) {
+            .mixer-grid {
+                grid-template-columns: 1fr 2fr;
+            }
+        }
+
+        /* Controls Column */
+        .controls-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .control-group {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .control-group.wave1 { border-left: 4px solid var(--accent); }
+        .control-group.wave2 { border-left: 4px solid var(--accent2); }
+        .control-group.wave3 { border-left: 4px solid var(--accent3); }
+
+        .control-group h4 {
+            font-size: 1.05rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.3rem;
+        }
+
+        .slider-wrapper {
+            margin-bottom: 0.8rem;
+        }
+
+        .slider-wrapper:last-child {
+            margin-bottom: 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #374151;
+            border-radius: 999px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .wave1 input[type="range"]::-webkit-slider-thumb { background: var(--accent); }
+        .wave2 input[type="range"]::-webkit-slider-thumb { background: var(--accent2); }
+        .wave3 input[type="range"]::-webkit-slider-thumb { background: var(--accent3); }
+
+        /* Canvas Column */
+        .canvas-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .canvas-card {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .canvas-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.8rem;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .canvas-card h4 span {
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            color: var(--accent2);
+        }
+
+        canvas {
+            width: 100%;
+            height: 180px;
+            background-color: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        /* Preset Buttons */
+        .presets-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            color: var(--ink);
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            border-color: var(--accent2);
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .btn.active {
+            background: var(--accent2);
+            color: #000;
+            border-color: var(--accent2);
+        }
+
+        /* ── SECTION 3: VIBRATION FAULTS ── */
+        .fault-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .fault-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .fault-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .fault-card.good-card h3 { color: var(--good); }
+        .fault-card.unbalance-card h3 { color: var(--bad); }
+        .fault-card.misalign-card h3 { color: var(--warn); }
+        .fault-card.bearing-card h3 { color: var(--accent3); }
+
+        .fault-status {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 0.8rem;
+        }
+
+        .fault-card.good-card .fault-status { background: rgba(16, 185, 129, 0.15); color: var(--good); }
+        .fault-card.unbalance-card .fault-status { background: rgba(239, 68, 68, 0.15); color: var(--bad); }
+        .fault-card.misalign-card .fault-status { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
+        .fault-card.bearing-card .fault-status { background: rgba(236, 72, 153, 0.15); color: var(--accent3); }
+
+        .fault-card p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .fault-card button {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .fault-card.good-card button:hover { background: rgba(16, 185, 129, 0.08); border-color: var(--good); }
+        .fault-card.unbalance-card button:hover { background: rgba(239, 68, 68, 0.08); border-color: var(--bad); }
+        .fault-card.misalign-card button:hover { background: rgba(245, 158, 11, 0.08); border-color: var(--warn); }
+        .fault-card.bearing-card button:hover { background: rgba(236, 72, 153, 0.08); border-color: var(--accent3); }
+
+        .fault-card.active {
+            border-color: currentColor;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+        }
+
+        .fault-card.good-card.active { border-color: var(--good); }
+        .fault-card.unbalance-card.active { border-color: var(--bad); }
+        .fault-card.misalign-card.active { border-color: var(--warn); }
+        .fault-card.bearing-card.active { border-color: var(--accent3); }
+
+        /* ── SECTION 4: THE MATH SIMPLIFIED ── */
+        .math-box {
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.8), rgba(31, 41, 55, 0.8));
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .math-box h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--accent2);
+        }
+
+        .math-box p {
+            color: var(--muted);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .formula-card {
+            background-color: #0b0f19;
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--accent2);
+            border-radius: 10px;
+            padding: 1.2rem;
+            text-align: center;
+            font-family: 'Cambria Math', Georgia, serif;
+            font-size: 1.6rem;
+            color: #fff;
+            margin-bottom: 1.5rem;
+        }
+
+        .formula-card span.explanation {
+            display: block;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+
+        .formula-params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .formula-params b {
+            color: #fff;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: 5rem;
+            border-top: 1px solid var(--border);
+            padding-top: 1.5rem;
+        }
+
+        footer strong {
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- ── HEADER ── -->
+    <header>
+        <span class="back-badge">Lab HUST - Chẩn đoán tình trạng máy bằng AI</span>
+        <h1>Trực Quan Hóa Biến Đổi Fourier (FFT)</h1>
+        <p>Hiểu bản chất của Fourier Transform dưới góc nhìn trực quan và cách áp dụng thuật toán FFT trong chẩn đoán dao động và lỗi thiết bị nhà máy.</p>
+    </header>
+
+    <!-- ── SECTION 1: THE INTUITION ── -->
+    <h2 class="section-title">Trực Giác Hóa Ý Tưởng Cốt Lõi</h2>
+    <div class="grid-3">
+        <div class="card">
+            <span class="card-icon">🍹</span>
+            <h3>Ẩn dụ ly sinh tố (Smoothie)</h3>
+            <p>Hãy tưởng tượng bạn có một ly sinh tố tổng hợp gồm dâu, chuối và việt quất. Fourier Transform hoạt động giống như một chiếc máy lọc kỳ diệu: nó phân tách ly sinh tố hỗn hợp đó ngược trở lại thành các phần trái cây riêng lẻ, đo lường chính xác lượng dâu, chuối và việt quất có trong ly.</p>
+        </div>
+        <div class="card">
+            <span class="card-icon">🌈</span>
+            <h3>Ẩn dụ Lăng kính ánh sáng</h3>
+            <p>Ánh sáng trắng đi qua lăng kính bị phân tách thành một dải cầu vồng gồm các bước sóng (màu sắc) khác nhau từ đỏ đến tím. Lăng kính chính là một "bộ biến đổi Fourier vật lý", nó tách một chùm sáng phức tạp thành các chùm sáng đơn sắc cấu thành nên nó.</p>
+        </div>
+        <div class="card">
+            <span class="card-icon">🎹</span>
+            <h3>Ẩn dụ Hợp âm Piano</h3>
+            <p>Khi bạn nhấn một hợp âm trên đàn Piano, tai bạn sẽ nghe thấy một âm thanh tổng hợp phức tạp. Nhưng một nhạc sĩ giỏi (hoặc thuật toán Fourier) có thể lập tức nhận ra các nốt nhạc đơn lẻ (Đô - Mi - Sol) và tần số tương ứng của mỗi nốt nhạc cấu thành nên hợp âm đó.</p>
+        </div>
+    </div>
+
+    <!-- ── SECTION 2: INTERACTIVE SIMULATOR ── -->
+    <h2 class="section-title">Bộ Trộn Sóng Tương Tác & Bộ Phân Tích FFT</h2>
+    <div class="mixer-box">
+        <div class="presets-row">
+            <button class="btn active" id="btn-custom" onclick="setPreset('custom')">🎛️ Tùy Chỉnh</button>
+            <button class="btn" id="btn-normal" onclick="setPreset('normal')">🟢 Bình Thường</button>
+            <button class="btn" id="btn-unbalance" onclick="setPreset('unbalance')">🔴 Lỗi Mất Cân Bằng (1X)</button>
+            <button class="btn" id="btn-misalignment" onclick="setPreset('misalignment')">🟡 Lỗi Lệch Tâm (1X & 2X)</button>
+            <button class="btn" id="btn-bearing" onclick="setPreset('bearing')">🟣 Lỗi Vòng Trong Ổ Lăn (BPFI)</button>
+        </div>
+
+        <div class="mixer-grid">
+            <!-- Sliders Controls Column -->
+            <div class="controls-col">
+                <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; color: #fff;">Điều Chỉnh Thành Phần Sóng</h3>
+                
+                <!-- Wave 1 -->
+                <div class="control-group wave1">
+                    <h4>Sóng Thành Phần 1 <span style="color: var(--accent)" id="val-w1-info">30 Hz | 1.0g</span></h4>
+                    <div class="slider-wrapper">
+                        <div class="slider-label"><span>Tần số (Frequency):</span><span id="txt-f1">30 Hz</span></div>
+                        <input type="range" id="freq1" min="10" max="200" value="30" oninput="updateSliders()">
+                    </div>
+                    <div class="slider-wrapper">
+                        <div class="slider-label"><span>Biên độ (Amplitude):</span><span id="txt-a1">1.0 g</span></div>
+                        <input type="range" id="amp1" min="0" max="30" value="10" oninput="updateSliders()">
+                    </div>
+                </div>
+
+                <!-- Wave 2 -->
+                <div class="control-group wave2">
+                    <h4>Sóng Thành Phần 2 <span style="color: var(--accent2)" id="val-w2-info">60 Hz | 0.0g</span></h4>
+                    <div class="slider-wrapper">
+                        <div class="slider-label"><span>Tần số (Frequency):</span><span id="txt-f2">60 Hz</span></div>
+                        <input type="range" id="freq2" min="10" max="250" value="60" oninput="updateSliders()">
+                    </div>
+                    <div class="slider-wrapper">
+                        <div class="slider-label"><span>Biên độ (Amplitude):</span><span id="txt-a2">0.0 g</span></div>
+                        <input type="range" id="amp2" min="0" max="30" value="0" oninput="updateSliders()">
+                    </div>
+                </div>
+
+                <!-- Wave 3 -->
+                <div class="control-group wave3">
+                    <h4>Sóng Thành Phần 3 <span style="color: var(--accent3)" id="val-w3-info">162 Hz | 0.0g</span></h4>
+                    <div class="slider-wrapper">
+                        <div class="slider-label"><span>Tần số (Frequency):</span><span id="txt-f3">162 Hz</span></div>
+                        <input type="range" id="freq3" min="10" max="300" value="162" oninput="updateSliders()">
+                    </div>
+                    <div class="slider-wrapper">
+                        <div class="slider-label"><span>Biên độ (Amplitude):</span><span id="txt-a3">0.0 g</span></div>
+                        <input type="range" id="amp3" min="0" max="30" value="0" oninput="updateSliders()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Visualization Column -->
+            <div class="canvas-col">
+                <div class="canvas-card">
+                    <h4>MIỀN THỜI GIAN (Time Domain Waveform) <span id="time-domain-tag">Sóng gia tốc tổng hợp y(t)</span></h4>
+                    <canvas id="timeCanvas"></canvas>
+                </div>
+                <div class="canvas-card">
+                    <h4>MIỀN TẦN SỐ (Frequency Spectrum / FFT) <span id="freq-domain-tag">Vạch biên độ theo Hz</span></h4>
+                    <canvas id="freqCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SECTION 3: FAULT EXPLAINER ── -->
+    <h2 class="section-title">Áp Dụng Thực Tế Trong Chẩn Đoán Lỗi Cơ Khí</h2>
+    <div class="fault-grid">
+        <!-- Good State -->
+        <div class="fault-card good-card" id="card-normal">
+            <span class="fault-status">Bình thường</span>
+            <h3>🟢 Thiết bị hoạt động tốt</h3>
+            <p>Tín hiệu miền thời gian dao động rất nhỏ, phẳng, không có chu kỳ đột biến. Phổ FFT hiển thị các đỉnh phổ cực kỳ thấp, nằm dưới ngưỡng cảnh báo an toàn. Năng lượng rung tổng thể (RMS) nhỏ.</p>
+            <button onclick="setPreset('normal')">Kích hoạt mô phỏng</button>
+        </div>
+
+        <!-- Unbalance -->
+        <div class="fault-card unbalance-card" id="card-unbalance">
+            <span class="fault-status">Lỗi Nghiêm Trọng</span>
+            <h3>🔴 Mất cân bằng động (Unbalance)</h3>
+            <p>Trọng tâm roto bị lệch khỏi trục quay vật lý (ví dụ do bám bụi bẩn, sứt cánh quạt). Phổ FFT xuất hiện một đỉnh phổ duy nhất cực kỳ lớn tại tần số quay trục 1X (ví dụ quay 1800 RPM = 30 Hz).</p>
+            <button onclick="setPreset('unbalance')">Kích hoạt mô phỏng</button>
+        </div>
+
+        <!-- Misalignment -->
+        <div class="fault-card misalign-card" id="card-misalignment">
+            <span class="fault-status">Cần chú ý</span>
+            <h3>🟡 Lệch tâm trục (Misalignment)</h3>
+            <p>Hai trục của động cơ và bơm không đồng thẳng hàng tại khớp nối. Chuyển động bị cưỡng bức sinh ra dao động định kỳ. Phổ FFT xuất hiện đỉnh phổ lớn tại tần số quay 1X và đặc biệt là đỉnh ở tần số gấp đôi 2X.</p>
+            <button onclick="setPreset('misalignment')">Kích hoạt mô phỏng</button>
+        </div>
+
+        <!-- Bearing Fault -->
+        <div class="fault-card bearing-card" id="card-bearing">
+            <span class="fault-status">Lỗi Khẩn Cấp</span>
+            <h3>🟣 Khuyết tật vòng trong (BPFI)</h3>
+            <p>Khi viên bi lăn qua vết nứt trên rãnh trong của vòng bi, nó tạo ra các xung cơ học lặp đi lặp lại rất nhanh. Phổ FFT xuất hiện đỉnh phổ tại tần số lỗi tính toán lý thuyết (ví dụ 162 Hz) đi kèm với các dải biên (sidebands) xung quanh.</p>
+            <button onclick="setPreset('bearing')">Kích hoạt mô phỏng</button>
+        </div>
+    </div>
+
+    <!-- ── SECTION 4: THE MATH ── -->
+    <div class="math-box">
+        <h3>Toán Học Đơn Giản Hóa</h3>
+        <p>Thuật toán FFT (Biến đổi Fourier nhanh) thực chất chỉ là một phương pháp tính toán tối ưu hóa của biến đổi Fourier rời rạc (DFT), giúp giảm khối lượng tính toán từ O(N²) xuống O(N log N). Công thức chuyển đổi cốt lõi từ miền thời gian sang tần số được biểu diễn như sau:</p>
+        <div class="formula-card">
+            X(f) = ∫ x(t) · e<sup>-i 2π f t</sup> dt
+            <span class="explanation">Biến đổi Fourier liên tục (Continuous Fourier Transform)</span>
+        </div>
+        <div class="formula-params">
+            <div>• <b>x(t)</b>: Tín hiệu gia tốc đo được theo thời gian (giây)</div>
+            <div>• <b>e<sup>-i 2π f t</sup></b>: Sóng hình sin phức ở tần số f dùng để kiểm tra</div>
+            <div>• <b>X(f)</b>: Kết quả biên độ (năng lượng) của tần số f trong tín hiệu</div>
+        </div>
+    </div>
+
+    <!-- ── FOOTER ── -->
+    <footer>
+        <p>Bản quyền tài liệu đào tạo thuộc về <strong>Lab HUST</strong> · Phát triển dành riêng cho Kỹ sư Bảo trì & Vận hành Nhà máy</p>
+    </footer>
+</div>
+
+<script>
+    // Elements references
+    const freq1 = document.getElementById('freq1');
+    const amp1 = document.getElementById('amp1');
+    const freq2 = document.getElementById('freq2');
+    const amp2 = document.getElementById('amp2');
+    const freq3 = document.getElementById('freq3');
+    const amp3 = document.getElementById('amp3');
+
+    const txt_f1 = document.getElementById('txt_f1');
+    const txt_a1 = document.getElementById('txt_a1');
+    const txt_f2 = document.getElementById('txt_f2');
+    const txt_a2 = document.getElementById('txt_a2');
+    const txt_f3 = document.getElementById('txt_f3');
+    const txt_a3 = document.getElementById('txt_a3');
+
+    const val_w1_info = document.getElementById('val-w1-info');
+    const val_w2_info = document.getElementById('val-w2-info');
+    const val_w3_info = document.getElementById('val-w3-info');
+
+    const timeCanvas = document.getElementById('timeCanvas');
+    const freqCanvas = document.getElementById('freqCanvas');
+    const ctxTime = timeCanvas.getContext('2d');
+    const ctxFreq = freqCanvas.getContext('2d');
+
+    // Resize canvas for high resolution displays
+    function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Time canvas
+        const rectTime = timeCanvas.getBoundingClientRect();
+        timeCanvas.width = rectTime.width * dpr;
+        timeCanvas.height = rectTime.height * dpr;
+        ctxTime.scale(dpr, dpr);
+        
+        // Freq canvas
+        const rectFreq = freqCanvas.getBoundingClientRect();
+        freqCanvas.width = rectFreq.width * dpr;
+        freqCanvas.height = rectFreq.height * dpr;
+        ctxFreq.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Active state params
+    let state = {
+        w1: { f: 30, a: 1.0 },
+        w2: { f: 60, a: 0.0 },
+        w3: { f: 162, a: 0.0 },
+        noise: 0.08
+    };
+
+    function updateSliders() {
+        // Read values from range inputs
+        state.w1.f = parseInt(freq1.value);
+        state.w1.a = parseFloat(amp1.value) / 10;
+        
+        state.w2.f = parseInt(freq2.value);
+        state.w2.a = parseFloat(amp2.value) / 10;
+        
+        state.w3.f = parseInt(freq3.value);
+        state.w3.a = parseFloat(amp3.value) / 10;
+
+        // Update texts labels
+        txt_f1.innerText = `${state.w1.f} Hz`;
+        txt_a1.innerText = `${state.w1.a.toFixed(1)} g`;
+        val_w1_info.innerText = `${state.w1.f} Hz | ${state.w1.a.toFixed(1)}g`;
+
+        txt_f2.innerText = `${state.w2.f} Hz`;
+        txt_a2.innerText = `${state.w2.a.toFixed(1)} g`;
+        val_w2_info.innerText = `${state.w2.f} Hz | ${state.w2.a.toFixed(1)}g`;
+
+        txt_f3.innerText = `${state.w3.f} Hz`;
+        txt_a3.innerText = `${state.w3.a.toFixed(1)} g`;
+        val_w3_info.innerText = `${state.w3.f} Hz | ${state.w3.a.toFixed(1)}g`;
+
+        document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn-custom').classList.add('active');
+        document.querySelectorAll('.fault-card').forEach(card => card.classList.remove('active'));
+    }
+
+    // Set presets simulation configurations
+    function setPreset(presetName) {
+        document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.fault-card').forEach(card => card.classList.remove('active'));
+
+        if (presetName === 'custom') {
+            document.getElementById('btn-custom').classList.add('active');
+            updateSliders();
+            return;
+        }
+
+        document.getElementById(`btn-${presetName}`).classList.add('active');
+        document.getElementById(`card-${presetName}`).classList.add('active');
+
+        switch(presetName) {
+            case 'normal':
+                state.w1.f = 30; state.w1.a = 0.15;
+                state.w2.f = 60; state.w2.a = 0.05;
+                state.w3.f = 162; state.w3.a = 0.0;
+                state.noise = 0.08;
+                break;
+            case 'unbalance':
+                state.w1.f = 30; state.w1.a = 2.4;
+                state.w2.f = 60; state.w2.a = 0.1;
+                state.w3.f = 162; state.w3.a = 0.0;
+                state.noise = 0.15;
+                break;
+            case 'misalignment':
+                state.w1.f = 30; state.w1.a = 1.2;
+                state.w2.f = 60; state.w2.a = 1.8;
+                state.w3.f = 162; state.w3.a = 0.05;
+                state.noise = 0.12;
+                break;
+            case 'bearing':
+                state.w1.f = 30; state.w1.a = 0.3;
+                state.w2.f = 60; state.w2.a = 0.1;
+                state.w3.f = 162; state.w3.a = 1.4;
+                state.noise = 0.22;
+                break;
+        }
+
+        // Apply state to range inputs
+        freq1.value = state.w1.f;
+        amp1.value = state.w1.a * 10;
+        freq2.value = state.w2.f;
+        amp2.value = state.w2.a * 10;
+        freq3.value = state.w3.f;
+        amp3.value = state.w3.a * 10;
+
+        // Update text labels
+        txt_f1.innerText = `${state.w1.f} Hz`;
+        txt_a1.innerText = `${state.w1.a.toFixed(1)} g`;
+        val_w1_info.innerText = `${state.w1.f} Hz | ${state.w1.a.toFixed(1)}g`;
+
+        txt_f2.innerText = `${state.w2.f} Hz`;
+        txt_a2.innerText = `${state.w2.a.toFixed(1)} g`;
+        val_w2_info.innerText = `${state.w2.f} Hz | ${state.w2.a.toFixed(1)}g`;
+
+        txt_f3.innerText = `${state.w3.f} Hz`;
+        txt_a3.innerText = `${state.w3.a.toFixed(1)} g`;
+        val_w3_info.innerText = `${state.w3.f} Hz | ${state.w3.a.toFixed(1)}g`;
+    }
+
+    // Animation Draw Loop
+    let timeOffset = 0;
+    function draw() {
+        const width = timeCanvas.clientWidth;
+        const height = timeCanvas.clientHeight;
+
+        // Clear canvases
+        ctxTime.clearRect(0, 0, width, height);
+        ctxFreq.clearRect(0, 0, width, height);
+
+        // --- DRAW TIME DOMAIN ---
+        ctxTime.strokeStyle = '#38bdf8';
+        ctxTime.lineWidth = 2;
+        ctxTime.beginPath();
+
+        // Draw centerline
+        ctxTime.strokeStyle = '#223047';
+        ctxTime.lineWidth = 1;
+        ctxTime.beginPath();
+        ctxTime.moveTo(0, height / 2);
+        ctxTime.lineTo(width, height / 2);
+        ctxTime.stroke();
+
+        ctxTime.strokeStyle = '#38bdf8';
+        ctxTime.lineWidth = 2;
+        ctxTime.beginPath();
+
+        const samples = width;
+        const timeScale = 0.05; // 50 ms view
+
+        for (let i = 0; i < samples; i++) {
+            const t = (i / samples) * timeScale + timeOffset;
+            
+            // Compose signal
+            let y = 0;
+            // Wave 1
+            y += state.w1.a * Math.sin(2 * Math.PI * state.w1.f * t);
+            // Wave 2
+            y += state.w2.a * Math.sin(2 * Math.PI * state.w2.f * t);
+            // Wave 3
+            y += state.w3.a * Math.sin(2 * Math.PI * state.w3.f * t);
+            
+            // Add high-frequency simulated noise
+            y += state.noise * (Math.sin(1000 * t) + Math.cos(2400 * t + 1));
+
+            // Map to canvas coordinate system
+            const canvasY = (height / 2) - y * (height / 6); // scale amplitude to fit 1/6 height
+            
+            if (i === 0) {
+                ctxTime.moveTo(i, canvasY);
+            } else {
+                ctxTime.lineTo(i, canvasY);
+            }
+        }
+        ctxTime.stroke();
+
+        // --- DRAW FREQUENCY DOMAIN (FFT Simulation) ---
+        // X-axis: 0 - 300 Hz
+        const maxHz = 300;
+        
+        // Draw grid lines
+        ctxFreq.strokeStyle = '#1e293b';
+        ctxFreq.lineWidth = 1;
+        ctxFreq.font = '10px Inter';
+        ctxFreq.fillStyle = '#64748b';
+        
+        for (let hz = 50; hz < maxHz; hz += 50) {
+            const x = (hz / maxHz) * width;
+            ctxFreq.beginPath();
+            ctxFreq.moveTo(x, 0);
+            ctxFreq.lineTo(x, height - 20);
+            ctxFreq.stroke();
+            ctxFreq.fillText(`${hz}Hz`, x - 12, height - 5);
+        }
+
+        // Draw spectral floor (random noise)
+        ctxFreq.strokeStyle = '#223047';
+        ctxFreq.beginPath();
+        for (let x = 0; x < width; x++) {
+            const hz = (x / width) * maxHz;
+            // Baseline noise logic
+            let noiseAmp = (0.02 + 0.03 * Math.random() + state.noise * 0.1);
+            
+            // Add tiny background grass peaks
+            noiseAmp += 0.05 * Math.exp(-Math.pow(hz - 120, 2) / 20); 
+
+            const yVal = height - 25 - noiseAmp * (height - 50);
+            if (x === 0) {
+                ctxFreq.moveTo(x, yVal);
+            } else {
+                ctxFreq.lineTo(x, yVal);
+            }
+        }
+        ctxFreq.stroke();
+
+        // Helper to draw a single peak line on spectrum
+        function drawPeak(targetHz, amplitude, color) {
+            if (amplitude <= 0) return;
+            const x = (targetHz / maxHz) * width;
+            const peakHeight = amplitude * (height - 50) * 0.8;
+            
+            ctxFreq.strokeStyle = color;
+            ctxFreq.lineWidth = 3;
+            
+            // Draw main vertical line
+            ctxFreq.beginPath();
+            ctxFreq.moveTo(x, height - 25);
+            ctxFreq.lineTo(x, height - 25 - peakHeight);
+            ctxFreq.stroke();
+
+            // Draw text label on top of peak
+            ctxFreq.fillStyle = color;
+            ctxFreq.font = 'bold 10px Inter';
+            ctxFreq.fillText(`${targetHz}Hz`, x - 15, height - 30 - peakHeight);
+        }
+
+        // Draw peaks with colors corresponding to inputs
+        drawPeak(state.w1.f, state.w1.a, '#2dd4bf'); // Wave 1 (Teal)
+        drawPeak(state.w2.f, state.w2.a, '#38bdf8'); // Wave 2 (Sky)
+        drawPeak(state.w3.f, state.w3.a, '#ec4899'); // Wave 3 (Pink)
+
+        // Draw sidebands for Bearing Fault Preset to make it extremely realistic
+        if (state.w3.a > 1.0 && state.w3.f === 162) {
+            // Sidebands at 162 +/- 30 Hz (i.e. 132Hz and 192Hz)
+            drawPeak(132, state.w3.a * 0.25, '#ec4899');
+            drawPeak(192, state.w3.a * 0.25, '#ec4899');
+        }
+
+        // Slow scroll time offset for time waveform
+        timeOffset += 0.0003;
+
+        requestAnimationFrame(draw);
+    }
+
+    // Set normal state config on load
+    setPreset('normal');
+    draw();
+</script>
+
+</body>
+</html>
